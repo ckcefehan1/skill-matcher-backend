@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>New Application for <span th:text="${projectName}">Project</span></h1>
+    <p>Hello <span th:text="${pmFirstName}">Project Manager</span>,</p>
+    <p>
+        <span th:text="${applicantName}">Applicant</span>
+        (<span th:text="${applicantEmail}">applicant@example.com</span>)
+        has applied to join your project "<span th:text="${projectName}">Project</span>".
+    </p>
+    <p th:if="${message != null and !message.isEmpty()}">
+        <strong>Message from applicant:</strong><br/>
+        <span th:text="${message}"></span>
+    </p>
+    <p>Review pending applications in the Skill Matcher dashboard.</p>
+</body>
+</html>

@@ -30,4 +30,8 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/v0.15_add_sent_at_to_chat_messages.xml"/>
     <include file="db/changelog/v0.16_add_chat_indexes.xml"/>
     <include file="db/changelog/v0.17_add_last_message_at_to_conversations.xml"/>
+    <include file="db/changelog/v0.18_add_user_max_concurrent_projects.xml"/>
+    <include file="db/changelog/v0.19_add_skill_relations.xml"/>
+    <include file="db/changelog/v0.20_add_project_applications.xml"/>
+    <include file="db/changelog/v0.21_add_read_at_to_chat_messages.xml"/>
 </databaseChangeLog>

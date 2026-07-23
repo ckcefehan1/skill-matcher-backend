@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.mail
 
+import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -28,5 +29,35 @@ class LoggingEmailService : EmailService {
         expirationHours: Long,
     ) {
         logger.info("Mock sending password reset email to {} with token {} (expires in {}h)", user.email, resetToken, expirationHours)
+    }
+
+    override fun sendApplicationSubmittedEmail(
+        pm: UserModel,
+        applicant: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ) {
+        logger.info(
+            "Mock sending application-submitted email to pm={} for project={} from applicant={} message={}",
+            pm.email,
+            project.name,
+            applicant.email,
+            message,
+        )
+    }
+
+    override fun sendApplicationDecidedEmail(
+        applicant: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+        reason: String?,
+    ) {
+        logger.info(
+            "Mock sending application-decided email to {} for project={} accepted={} reason={}",
+            applicant.email,
+            project.name,
+            accepted,
+            reason,
+        )
     }
 }

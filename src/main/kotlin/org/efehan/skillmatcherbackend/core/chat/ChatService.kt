@@ -137,11 +137,82 @@ class ChatService(
 
         conversation.lastMessageAt = sentAt
 
-        val recipientEmail = if (conversation.userOne.id == user.id) conversation.userTwo.email else conversation.userOne.email
+        val recipient = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
         val response = message.toDTO()
-        messagingTemplate.convertAndSendToUser(recipientEmail, "/queue/messages", response)
-        messagingTemplate.convertAndSendToUser(user.email, "/queue/messages", response)
+        messagingTemplate.convertAndSendToUser(recipient.id, "/queue/messages", response)
+        messagingTemplate.convertAndSendToUser(user.id, "/queue/messages", response)
 
         return message
+    }
+
+    fun getUnreadCounts(
+        user: UserModel,
+        conversations: List<ConversationModel>,
+    ): Map<String, Long> {
+        if (conversations.isEmpty()) return emptyMap()
+        return messageRepo
+            .countUnreadByConversations(conversations, user)
+            .associate { (it[0] as String) to (it[1] as Long) }
+    }
+
+    fun markConversationRead(
+        user: UserModel,
+        conversationId: String,
+    ) {
+        val conversation =
+            conversationRepo.findById(conversationId).orElseThrow {
+                EntryNotFoundException(
+                    resource = "Conversation",
+                    field = "id",
+                    value = conversationId,
+                    errorCode = GlobalErrorCode.CONVERSATION_NOT_FOUND,
+                    status = HttpStatus.NOT_FOUND,
+                )
+            }
+
+        if (conversation.userOne.id != user.id && conversation.userTwo.id != user.id) {
+            throw AccessDeniedException(
+                resource = "Conversation",
+                errorCode = GlobalErrorCode.CONVERSATION_ACCESS_DENIED,
+                status = HttpStatus.FORBIDDEN,
+            )
+        }
+
+        val readAt = Instant.now()
+        val updated = messageRepo.markConversationRead(conversation, user, readAt)
+
+        if (updated > 0) {
+            val partner = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
+            val receipt = ReadReceiptResponse(conversationId = conversation.id, readBy = user.id, readAt = readAt)
+            messagingTemplate.convertAndSendToUser(partner.id, "/queue/read-receipts", receipt)
+        }
+    }
+
+    fun notifyTyping(
+        user: UserModel,
+        conversationId: String,
+    ) {
+        val conversation =
+            conversationRepo.findById(conversationId).orElseThrow {
+                EntryNotFoundException(
+                    resource = "Conversation",
+                    field = "id",
+                    value = conversationId,
+                    errorCode = GlobalErrorCode.CONVERSATION_NOT_FOUND,
+                    status = HttpStatus.NOT_FOUND,
+                )
+            }
+
+        if (conversation.userOne.id != user.id && conversation.userTwo.id != user.id) {
+            throw AccessDeniedException(
+                resource = "Conversation",
+                errorCode = GlobalErrorCode.CONVERSATION_ACCESS_DENIED,
+                status = HttpStatus.FORBIDDEN,
+            )
+        }
+
+        val partner = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
+        val typing = TypingResponse(conversationId = conversation.id, userId = user.id)
+        messagingTemplate.convertAndSendToUser(partner.id, "/queue/typing", typing)
     }
 }

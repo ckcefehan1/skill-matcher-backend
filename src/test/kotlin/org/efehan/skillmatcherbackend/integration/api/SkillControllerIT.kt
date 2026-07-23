@@ -44,9 +44,9 @@ class SkillControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(3) }
-                jsonPath("$[0].id") { isNotEmpty() }
-                jsonPath("$[0].name") { isNotEmpty() }
+                jsonPath("$.content.length()") { value(3) }
+                jsonPath("$.content[0].id") { isNotEmpty() }
+                jsonPath("$.content[0].name") { isNotEmpty() }
             }
     }
 
@@ -72,7 +72,7 @@ class SkillControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(0) }
+                jsonPath("$.content.length()") { value(0) }
             }
     }
 

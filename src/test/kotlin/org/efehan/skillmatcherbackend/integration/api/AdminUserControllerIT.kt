@@ -207,10 +207,10 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(2) }
-                jsonPath("$[0].id") { isNotEmpty() }
-                jsonPath("$[0].email") { isNotEmpty() }
-                jsonPath("$[0].role") { isNotEmpty() }
+                jsonPath("$.content.length()") { value(2) }
+                jsonPath("$.content[0].id") { isNotEmpty() }
+                jsonPath("$.content[0].email") { isNotEmpty() }
+                jsonPath("$.content[0].role") { isNotEmpty() }
             }
     }
 
@@ -236,7 +236,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(1) }
+                jsonPath("$.content.length()") { value(1) }
             }
     }
 

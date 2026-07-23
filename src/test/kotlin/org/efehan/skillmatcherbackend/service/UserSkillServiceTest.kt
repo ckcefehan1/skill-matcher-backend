@@ -19,6 +19,9 @@ import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
@@ -144,28 +147,28 @@ class UserSkillServiceTest {
                 SkillBuilder().build(name = "java"),
                 SkillBuilder().build(name = "spring"),
             )
-        every { skillRepo.findAll() } returns skills
+        every { skillRepo.findAll(any<Pageable>()) } returns PageImpl(skills)
 
         // when
-        val result = userSkillService.getAllSkills()
+        val result = userSkillService.getAllSkills(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).hasSize(3)
-        assertThat(result[0].name).isEqualTo("kotlin")
-        assertThat(result[1].name).isEqualTo("java")
-        assertThat(result[2].name).isEqualTo("spring")
+        assertThat(result.content).hasSize(3)
+        assertThat(result.content[0].name).isEqualTo("kotlin")
+        assertThat(result.content[1].name).isEqualTo("java")
+        assertThat(result.content[2].name).isEqualTo("spring")
     }
 
     @Test
     fun `getAllSkills returns empty list when no skills exist`() {
         // given
-        every { skillRepo.findAll() } returns emptyList()
+        every { skillRepo.findAll(any<Pageable>()) } returns PageImpl(emptyList())
 
         // when
-        val result = userSkillService.getAllSkills()
+        val result = userSkillService.getAllSkills(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).isEmpty()
+        assertThat(result.content).isEmpty()
     }
 
     @Test

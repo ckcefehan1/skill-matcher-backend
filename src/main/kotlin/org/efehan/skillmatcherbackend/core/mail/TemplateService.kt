@@ -1,5 +1,7 @@
 package org.efehan.skillmatcherbackend.core.mail
 
+import org.efehan.skillmatcherbackend.persistence.ProjectModel
+import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.springframework.stereotype.Service
 import org.thymeleaf.context.Context
 import org.thymeleaf.spring6.SpringTemplateEngine
@@ -42,5 +44,38 @@ class TemplateService(
                 setVariable("expirationHours", expirationHours)
             }
         return templateEngine.process("password-reset", context)
+    }
+
+    fun renderApplicationSubmitted(
+        pm: UserModel,
+        applicant: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ): String {
+        val context =
+            Context().apply {
+                setVariable("pmFirstName", pm.firstName ?: "Project Manager")
+                setVariable("applicantName", "${applicant.firstName ?: ""} ${applicant.lastName ?: ""}".trim())
+                setVariable("applicantEmail", applicant.email)
+                setVariable("projectName", project.name)
+                setVariable("message", message)
+            }
+        return templateEngine.process("application-submitted", context)
+    }
+
+    fun renderApplicationDecided(
+        applicant: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+        reason: String?,
+    ): String {
+        val context =
+            Context().apply {
+                setVariable("firstName", applicant.firstName ?: "User")
+                setVariable("projectName", project.name)
+                setVariable("accepted", accepted)
+                setVariable("reason", reason)
+            }
+        return templateEngine.process("application-decided", context)
     }
 }

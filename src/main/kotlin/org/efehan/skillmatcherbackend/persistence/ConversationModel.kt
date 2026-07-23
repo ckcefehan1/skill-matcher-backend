@@ -28,6 +28,8 @@ class ConversationModel(
     fun toDTO(
         currentUser: UserModel,
         lastMessage: ChatMessageModel?,
+        unreadCount: Long = 0,
+        partnerOnline: Boolean = false,
     ): ConversationResponse {
         val partner = if (userOne.id == currentUser.id) userTwo else userOne
         return ConversationResponse(
@@ -37,8 +39,10 @@ class ConversationModel(
                     id = partner.id,
                     firstName = partner.firstName ?: "",
                     lastName = partner.lastName ?: "",
+                    online = partnerOnline,
                 ),
             lastMessage = lastMessage?.toDTO(),
+            unreadCount = unreadCount,
             createdDate = createdDate!!,
         )
     }

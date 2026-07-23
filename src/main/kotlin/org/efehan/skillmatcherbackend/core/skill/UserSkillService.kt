@@ -8,6 +8,8 @@ import org.efehan.skillmatcherbackend.persistence.UserSkillModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -45,7 +47,7 @@ class UserSkillService(
         return userSkill to created
     }
 
-    fun getAllSkills(): List<SkillModel> = skillRepo.findAll()
+    fun getAllSkills(pageable: Pageable): Page<SkillModel> = skillRepo.findAll(pageable)
 
     fun getUserSkills(user: UserModel): List<UserSkillModel> = userSkillRepo.findByUser(user)
 

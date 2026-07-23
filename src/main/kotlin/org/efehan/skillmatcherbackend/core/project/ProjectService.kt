@@ -9,6 +9,8 @@ import org.efehan.skillmatcherbackend.persistence.ProjectStatus
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -52,7 +54,7 @@ class ProjectService(
                 status = HttpStatus.NOT_FOUND,
             )
 
-    fun getAllProjects(): List<ProjectModel> = projectRepo.findAll()
+    fun getAllProjects(pageable: Pageable): Page<ProjectModel> = projectRepo.findAll(pageable)
 
     fun updateProject(
         user: UserModel,

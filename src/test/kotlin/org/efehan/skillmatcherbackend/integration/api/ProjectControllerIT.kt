@@ -203,9 +203,9 @@ class ProjectControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(2) }
-                jsonPath("$[0].id") { isNotEmpty() }
-                jsonPath("$[1].id") { isNotEmpty() }
+                jsonPath("$.content.length()") { value(2) }
+                jsonPath("$.content[0].id") { isNotEmpty() }
+                jsonPath("$.content[1].id") { isNotEmpty() }
             }
     }
 
@@ -220,7 +220,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
                 header("Authorization", "Bearer $token")
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.length()") { value(0) }
+                jsonPath("$.content.length()") { value(0) }
             }
     }
 

@@ -2,6 +2,13 @@ package org.efehan.skillmatcherbackend.core.matching
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+enum class MatchTier {
+    EXACT,
+    FALLBACK,
+    STRETCH,
+    ALL,
+}
+
 data class MatchScoreBreakdown(
     @Schema(example = "1.0", description = "Anteil der erfüllten MUST_HAVE Skills (0.0–1.0)")
     val mustHaveCoverage: Double,
@@ -24,6 +31,8 @@ data class MatchedSkillDto(
     val requiredLevel: Int,
     @Schema(example = "MUST_HAVE")
     val priority: String,
+    @Schema(example = "null", description = "Name of the related skill used for this match, or null for a direct skill match")
+    val matchedVia: String? = null,
 )
 
 data class MissingSkillDto(
@@ -45,6 +54,14 @@ data class UserMatchDto(
     val email: String,
     @Schema(example = "0.87")
     val score: Double,
+    @Schema(example = "EXACT", description = "Match-Tier: EXACT (100% Must-have), FALLBACK (≥ Threshold), STRETCH (< Threshold)")
+    val matchTier: String,
+    @Schema(example = "1", description = "Anzahl aktiver Projekte des Users")
+    val capacityLoad: Int,
+    @Schema(example = "3", description = "Maximale parallele Projekte des Users")
+    val capacityMax: Int,
+    @Schema(example = "false", description = "Ob der User eine aktive (PENDING) Bewerbung für dieses Projekt hat")
+    val hasApplied: Boolean,
     val breakdown: MatchScoreBreakdown,
     val matchedSkills: List<MatchedSkillDto>,
     val missingSkills: List<MissingSkillDto>,
@@ -62,6 +79,12 @@ data class ProjectMatchDto(
     val ownerName: String,
     @Schema(example = "0.87")
     val score: Double,
+    @Schema(example = "EXACT", description = "Match-Tier aus User-Sicht")
+    val matchTier: String,
+    @Schema(example = "0.8", description = "Lernpotenzial: Anteil der Skills im ±1 Level-Bereich (0.0–1.0)")
+    val growthPotential: Double,
+    @Schema(example = "PENDING", description = "Status der eigenen Bewerbung für dieses Projekt, oder null wenn nicht beworben")
+    val applicationStatus: String?,
     val breakdown: MatchScoreBreakdown,
     val matchedSkills: List<MatchedSkillDto>,
     val missingSkills: List<MissingSkillDto>,

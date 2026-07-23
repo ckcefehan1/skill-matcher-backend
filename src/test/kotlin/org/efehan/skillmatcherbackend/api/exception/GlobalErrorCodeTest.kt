@@ -48,10 +48,21 @@ class GlobalErrorCodeTest {
     val expectedProjectSkillNotFoundErrorCode = "PROJECT_SKILL_NOT_FOUND"
     val expectedProjectSkillDuplicateErrorCode = "PROJECT_SKILL_DUPLICATE"
 
+    // Skill Relations
+    val expectedSkillRelationNotFoundErrorCode = "SKILL_RELATION_NOT_FOUND"
+    val expectedSkillRelationDuplicateErrorCode = "SKILL_RELATION_DUPLICATE"
+
     // Project Members
     val expectedProjectMemberNotFoundErrorCode = "PROJECT_MEMBER_NOT_FOUND"
     val expectedProjectMemberDuplicateErrorCode = "PROJECT_MEMBER_DUPLICATE"
     val expectedProjectFullErrorCode = "PROJECT_FULL"
+
+    // Project Applications
+    val expectedApplicationNotFoundErrorCode = "APPLICATION_NOT_FOUND"
+    val expectedApplicationDuplicateErrorCode = "APPLICATION_DUPLICATE"
+    val expectedApplicationAlreadyDecidedErrorCode = "APPLICATION_ALREADY_DECIDED"
+    val expectedApplicationAccessDeniedErrorCode = "APPLICATION_ACCESS_DENIED"
+    val expectedApplicationForMemberErrorCode = "APPLICATION_FOR_MEMBER"
 
     // User Availability
     val expectedUserAvailabilityNotFoundErrorCode = "USER_AVAILABILITY_NOT_FOUND"
@@ -113,10 +124,21 @@ class GlobalErrorCodeTest {
         assertThat(expectedProjectSkillNotFoundErrorCode).isEqualTo(GlobalErrorCode.PROJECT_SKILL_NOT_FOUND.name)
         assertThat(expectedProjectSkillDuplicateErrorCode).isEqualTo(GlobalErrorCode.PROJECT_SKILL_DUPLICATE.name)
 
+        // Skill Relations
+        assertThat(expectedSkillRelationNotFoundErrorCode).isEqualTo(GlobalErrorCode.SKILL_RELATION_NOT_FOUND.name)
+        assertThat(expectedSkillRelationDuplicateErrorCode).isEqualTo(GlobalErrorCode.SKILL_RELATION_DUPLICATE.name)
+
         // Project Members
         assertThat(expectedProjectMemberNotFoundErrorCode).isEqualTo(GlobalErrorCode.PROJECT_MEMBER_NOT_FOUND.name)
         assertThat(expectedProjectMemberDuplicateErrorCode).isEqualTo(GlobalErrorCode.PROJECT_MEMBER_DUPLICATE.name)
         assertThat(expectedProjectFullErrorCode).isEqualTo(GlobalErrorCode.PROJECT_FULL.name)
+
+        // Project Applications
+        assertThat(expectedApplicationNotFoundErrorCode).isEqualTo(GlobalErrorCode.APPLICATION_NOT_FOUND.name)
+        assertThat(expectedApplicationDuplicateErrorCode).isEqualTo(GlobalErrorCode.APPLICATION_DUPLICATE.name)
+        assertThat(expectedApplicationAlreadyDecidedErrorCode).isEqualTo(GlobalErrorCode.APPLICATION_ALREADY_DECIDED.name)
+        assertThat(expectedApplicationAccessDeniedErrorCode).isEqualTo(GlobalErrorCode.APPLICATION_ACCESS_DENIED.name)
+        assertThat(expectedApplicationForMemberErrorCode).isEqualTo(GlobalErrorCode.APPLICATION_FOR_MEMBER.name)
 
         // User Availability
         assertThat(expectedUserAvailabilityNotFoundErrorCode).isEqualTo(GlobalErrorCode.USER_AVAILABILITY_NOT_FOUND.name)
@@ -135,7 +157,7 @@ class GlobalErrorCodeTest {
         // General
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(39)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(46)
     }
 
     @Test

@@ -24,6 +24,9 @@ import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
@@ -178,31 +181,31 @@ class AdminUserServiceTest {
         val user1 = UserBuilder().build(email = "max@firma.de", role = RoleBuilder().build(name = "EMPLOYER"))
         val user2 = UserBuilder().build(email = "admin@firma.de", isEnabled = false, role = RoleBuilder().build(name = "ADMIN"))
 
-        every { userRepository.findAll() } returns listOf(user1, user2)
+        every { userRepository.findAll(any<Pageable>()) } returns PageImpl(listOf(user1, user2))
 
         // when
-        val result = adminUserService.listUsers()
+        val result = adminUserService.listUsers(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).hasSize(2)
-        assertThat(result[0].email).isEqualTo("max@firma.de")
-        assertThat(result[0].role.name).isEqualTo("EMPLOYER")
-        assertThat(result[0].isEnabled).isTrue()
-        assertThat(result[1].email).isEqualTo("admin@firma.de")
-        assertThat(result[1].role.name).isEqualTo("ADMIN")
-        assertThat(result[1].isEnabled).isFalse()
+        assertThat(result.content).hasSize(2)
+        assertThat(result.content[0].email).isEqualTo("max@firma.de")
+        assertThat(result.content[0].role.name).isEqualTo("EMPLOYER")
+        assertThat(result.content[0].isEnabled).isTrue()
+        assertThat(result.content[1].email).isEqualTo("admin@firma.de")
+        assertThat(result.content[1].role.name).isEqualTo("ADMIN")
+        assertThat(result.content[1].isEnabled).isFalse()
     }
 
     @Test
     fun `listUsers returns empty list when no users exist`() {
         // given
-        every { userRepository.findAll() } returns emptyList()
+        every { userRepository.findAll(any<Pageable>()) } returns PageImpl(emptyList())
 
         // when
-        val result = adminUserService.listUsers()
+        val result = adminUserService.listUsers(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).isEmpty()
+        assertThat(result.content).isEmpty()
     }
 
     @Test

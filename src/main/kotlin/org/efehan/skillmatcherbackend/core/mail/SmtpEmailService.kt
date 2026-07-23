@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.mail
 
 import org.efehan.skillmatcherbackend.config.properties.MailProperties
+import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -65,6 +66,42 @@ class SmtpEmailService(
             send(user.email, "Reset Your Password - Skill Matcher", htmlContent)
         } catch (ex: Exception) {
             logger.error("Failed to send password reset email to={}", user.email, ex)
+        }
+    }
+
+    @Async
+    override fun sendApplicationSubmittedEmail(
+        pm: UserModel,
+        applicant: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ) {
+        try {
+            val htmlContent = templateService.renderApplicationSubmitted(pm, applicant, project, message)
+            send(pm.email, "New application for '${project.name}'", htmlContent)
+        } catch (ex: Exception) {
+            logger.error("Failed to send application-submitted email to pm={}", pm.email, ex)
+        }
+    }
+
+    @Async
+    override fun sendApplicationDecidedEmail(
+        applicant: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+        reason: String?,
+    ) {
+        try {
+            val htmlContent = templateService.renderApplicationDecided(applicant, project, accepted, reason)
+            val subject =
+                if (accepted) {
+                    "Your application for '${project.name}' was accepted"
+                } else {
+                    "Your application for '${project.name}' was declined"
+                }
+            send(applicant.email, subject, htmlContent)
+        } catch (ex: Exception) {
+            logger.error("Failed to send application-decided email to={}", applicant.email, ex)
         }
     }
 

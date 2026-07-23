@@ -10,6 +10,7 @@ import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberDto
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.time.Instant
 
@@ -57,7 +58,25 @@ interface ProjectMemberRepository : JpaRepository<ProjectMemberModel, String> {
         project: ProjectModel,
         status: ProjectMemberStatus,
     ): Long
+
+    @Query(
+        """
+        SELECT new org.efehan.skillmatcherbackend.persistence.UserMemberCount(pm.user.id, COUNT(pm.id))
+        FROM ProjectMemberModel pm
+        WHERE pm.user IN :users AND pm.status = :status
+        GROUP BY pm.user.id
+        """,
+    )
+    fun countActiveByUserIn(
+        users: Collection<UserModel>,
+        status: ProjectMemberStatus,
+    ): List<UserMemberCount>
 }
+
+data class UserMemberCount(
+    val userId: String,
+    val count: Long,
+)
 
 enum class ProjectMemberStatus {
     ACTIVE,
