@@ -242,7 +242,7 @@ class ApplicationServiceTest {
                 status = ApplicationStatus.DECLINED,
                 appliedAt = Instant.now(),
             )
-        every { applicationRepo.findByProject(project, any()) } returns PageImpl(listOf(pendingApp, decidedApp))
+        every { applicationRepo.findByProjectPendingFirst(project, any()) } returns PageImpl(listOf(pendingApp, decidedApp))
 
         val result = service.listForProject(pm, project.id, PageRequest.of(0, 20))
 
