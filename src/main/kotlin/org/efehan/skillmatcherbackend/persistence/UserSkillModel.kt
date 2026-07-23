@@ -36,6 +36,12 @@ class UserSkillModel(
         )
 }
 
+data class SkillCoOccurrence(
+    val fromSkill: SkillModel,
+    val toSkill: SkillModel,
+    val count: Long,
+)
+
 @Repository
 interface UserSkillRepository : JpaRepository<UserSkillModel, String> {
     fun findByUser(user: UserModel): List<UserSkillModel>
@@ -67,4 +73,18 @@ interface UserSkillRepository : JpaRepository<UserSkillModel, String> {
         project: ProjectModel,
         activeStatus: ProjectMemberStatus,
     ): List<UserSkillModel>
+
+    @Query(
+        """
+        SELECT NEW org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence(
+            us1.skill, us2.skill, COUNT(us1.id)
+        )
+        FROM UserSkillModel us1
+        JOIN UserSkillModel us2 ON us1.user.id = us2.user.id
+                                AND us1.skill.id < us2.skill.id
+        GROUP BY us1.skill, us2.skill
+        HAVING COUNT(us1.id) >= :minCount
+        """,
+    )
+    fun findSkillCoOccurrence(minCount: Long): List<SkillCoOccurrence>
 }

@@ -8,6 +8,8 @@ import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -83,7 +85,7 @@ class AdminUserService(
         }
     }
 
-    fun listUsers(): List<UserModel> = userRepository.findAll()
+    fun listUsers(pageable: Pageable): Page<UserModel> = userRepository.findAll(pageable)
 
     fun updateUserRole(
         userId: String,

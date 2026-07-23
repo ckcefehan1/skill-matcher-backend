@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <changeSet id="1771266156799-13" author="efehan">
+        <addColumn tableName="chat_messages">
+            <column name="read_at" type="DATETIME"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="1771266156799-14" author="efehan">
+        <createIndex indexName="idx_chat_messages_unread" tableName="chat_messages">
+            <column name="conversation_id"/>
+            <column name="sender_id"/>
+            <column name="read_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

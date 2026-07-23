@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -440,7 +443,9 @@ class AdminUserController(
     )
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    fun listUsers(): List<AdminUserDto> = adminUserService.listUsers().map { it.toAdminDTO() }
+    fun listUsers(
+        @PageableDefault(size = 20) pageable: Pageable,
+    ): Page<AdminUserDto> = adminUserService.listUsers(pageable).map { it.toAdminDTO() }
 
     @Operation(
         summary = "Update user role",

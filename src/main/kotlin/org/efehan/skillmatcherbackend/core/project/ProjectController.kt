@@ -12,6 +12,9 @@ import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectStatus
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -272,7 +275,9 @@ class ProjectController(
     )
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    fun getAllProjects(): List<ProjectDto> = service.getAllProjects().map(ProjectModel::toDTO)
+    fun getAllProjects(
+        @PageableDefault(size = 20) pageable: Pageable,
+    ): Page<ProjectDto> = service.getAllProjects(pageable).map(ProjectModel::toDTO)
 
     @Operation(
         summary = "Update a project",

@@ -69,8 +69,63 @@ class ChatControllerIT : AbstractIntegrationTest() {
                 jsonPath("$.length()") { value(1) }
                 jsonPath("$[0].id") { value(conversation.id) }
                 jsonPath("$[0].partner.firstName") { value("Bob") }
+                jsonPath("$[0].partner.online") { value(false) }
                 jsonPath("$[0].lastMessage.content") { value("Hello Bob!") }
                 jsonPath("$[0].lastMessage.sentAt") { isNotEmpty() }
+            }
+    }
+
+    @Test
+    fun `should return unread count per conversation`() {
+        // given
+        val role = roleRepository.save(RoleModel("EMPLOYER", null))
+        val alice =
+            userRepository.save(
+                UserModel(
+                    email = "alice@firma.de",
+                    passwordHash = passwordEncoder.encode("Test-Password1!"),
+                    firstName = "Alice",
+                    lastName = "Schmidt",
+                    role = role,
+                ).apply { isEnabled = true },
+            )
+        val bob =
+            userRepository.save(
+                UserModel(
+                    email = "bob@firma.de",
+                    passwordHash = passwordEncoder.encode("Test-Password1!"),
+                    firstName = "Bob",
+                    lastName = "Mueller",
+                    role = role,
+                ).apply { isEnabled = true },
+            )
+        val tokenAlice = jwtService.generateAccessToken(alice)
+        val tokenBob = jwtService.generateAccessToken(bob)
+        val (first, second) = if (alice.id < bob.id) alice to bob else bob to alice
+        val conversation = conversationRepository.save(ConversationModel(userOne = first, userTwo = second))
+        chatMessageRepository.save(
+            ChatMessageModel(
+                conversation = conversation,
+                sender = bob,
+                content = "Unread from Bob",
+                sentAt = Instant.now(),
+            ),
+        )
+
+        // when & then — alice has one unread message, bob (the sender) has none
+        mockMvc
+            .get("/api/chat/conversations") {
+                header("Authorization", "Bearer $tokenAlice")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$[0].unreadCount") { value(1) }
+            }
+        mockMvc
+            .get("/api/chat/conversations") {
+                header("Authorization", "Bearer $tokenBob")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$[0].unreadCount") { value(0) }
             }
     }
 

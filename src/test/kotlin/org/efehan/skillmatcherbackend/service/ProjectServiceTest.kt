@@ -24,6 +24,9 @@ import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
@@ -106,27 +109,27 @@ class ProjectServiceTest {
         val owner = UserBuilder().build()
         val project1 = ProjectBuilder().build(owner = owner)
         val project2 = ProjectBuilder().build(owner = owner, name = "Another Project")
-        every { projectRepo.findAll() } returns listOf(project1, project2)
+        every { projectRepo.findAll(any<Pageable>()) } returns PageImpl(listOf(project1, project2))
 
         // when
-        val result = projectService.getAllProjects()
+        val result = projectService.getAllProjects(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).hasSize(2)
-        assertThat(result[0].name).isEqualTo(project1.name)
-        assertThat(result[1].name).isEqualTo(project2.name)
+        assertThat(result.content).hasSize(2)
+        assertThat(result.content[0].name).isEqualTo(project1.name)
+        assertThat(result.content[1].name).isEqualTo(project2.name)
     }
 
     @Test
     fun `getAllProjects returns empty list when no projects exist`() {
         // given
-        every { projectRepo.findAll() } returns emptyList()
+        every { projectRepo.findAll(any<Pageable>()) } returns PageImpl(emptyList())
 
         // when
-        val result = projectService.getAllProjects()
+        val result = projectService.getAllProjects(PageRequest.of(0, 20))
 
         // then
-        assertThat(result).isEmpty()
+        assertThat(result.content).isEmpty()
     }
 
     @Test

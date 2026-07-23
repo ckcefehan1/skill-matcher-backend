@@ -29,6 +29,7 @@ import java.time.Instant
 @Tag(name = "Chat", description = "Direct messaging")
 class ChatController(
     private val chatService: ChatService,
+    private val presenceService: PresenceService,
 ) {
     @Operation(summary = "Get my conversations", description = "Returns all conversations for the authenticated user.")
     @ApiResponses(
@@ -68,8 +69,15 @@ class ChatController(
         val user = securityUser.user
         val conversations = chatService.getConversations(user)
         val lastMessages = chatService.getLastMessages(conversations)
+        val unreadCounts = chatService.getUnreadCounts(user, conversations)
         return conversations.map {
-            it.toDTO(currentUser = user, lastMessage = lastMessages[it.id])
+            val partnerId = if (it.userOne.id == user.id) it.userTwo.id else it.userOne.id
+            it.toDTO(
+                currentUser = user,
+                lastMessage = lastMessages[it.id],
+                unreadCount = unreadCounts[it.id] ?: 0,
+                partnerOnline = presenceService.isOnline(partnerId),
+            )
         }
     }
 
@@ -259,6 +267,7 @@ class ChatController(
                 .toDTO(
                     currentUser = user,
                     lastMessage = chatService.getLastMessage(conversation),
+                    partnerOnline = presenceService.isOnline(request.userId),
                 )
 
         return if (created) {

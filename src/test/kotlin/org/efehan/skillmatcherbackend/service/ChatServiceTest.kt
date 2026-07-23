@@ -9,6 +9,8 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.core.chat.ChatService
+import org.efehan.skillmatcherbackend.core.chat.ReadReceiptResponse
+import org.efehan.skillmatcherbackend.core.chat.TypingResponse
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ChatMessageBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ConversationBuilder
@@ -291,8 +293,8 @@ class ChatServiceTest {
         assertThat(result.conversation).isEqualTo(conversation)
         assertThat(result.sentAt).isNotNull()
         verify(exactly = 1) { messageRepo.save(any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.email, "/queue/messages", any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.email, "/queue/messages", any()) }
+        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.id, "/queue/messages", any()) }
+        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.id, "/queue/messages", any()) }
     }
 
     @Test
@@ -347,7 +349,191 @@ class ChatServiceTest {
         chatService.sendMessage(userB, conversation.id, "Hello Alice!")
 
         // then
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.email, "/queue/messages", any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.email, "/queue/messages", any()) }
+        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.id, "/queue/messages", any()) }
+        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.id, "/queue/messages", any()) }
+    }
+
+    @Test
+    fun `getUnreadCounts returns map of conversation id to count`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { messageRepo.countUnreadByConversations(listOf(conversation), userA) } returns
+            listOf(arrayOf(conversation.id, 3L))
+
+        // when
+        val result = chatService.getUnreadCounts(userA, listOf(conversation))
+
+        // then
+        assertThat(result).containsExactlyEntriesOf(mapOf(conversation.id to 3L))
+    }
+
+    @Test
+    fun `getUnreadCounts returns empty map for empty input`() {
+        // when
+        val result = chatService.getUnreadCounts(UserBuilder().build(), emptyList())
+
+        // then
+        assertThat(result).isEmpty()
+        verify(exactly = 0) { messageRepo.countUnreadByConversations(any(), any()) }
+    }
+
+    @Test
+    fun `markConversationRead marks messages read and sends receipt to partner`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+        every { messageRepo.markConversationRead(conversation, userA, any()) } returns 2
+        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
+        val receiptSlot = slot<ReadReceiptResponse>()
+
+        // when
+        chatService.markConversationRead(userA, conversation.id)
+
+        // then
+        verify(exactly = 1) { messageRepo.markConversationRead(conversation, userA, any()) }
+        verify(exactly = 1) {
+            messagingTemplate.convertAndSendToUser(userB.id, "/queue/read-receipts", capture(receiptSlot))
+        }
+        assertThat(receiptSlot.captured.conversationId).isEqualTo(conversation.id)
+        assertThat(receiptSlot.captured.readBy).isEqualTo(userA.id)
+        assertThat(receiptSlot.captured.readAt).isNotNull()
+    }
+
+    @Test
+    fun `markConversationRead sends receipt to userOne when userTwo marks read`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+        every { messageRepo.markConversationRead(conversation, userB, any()) } returns 1
+        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
+        val receiptSlot = slot<ReadReceiptResponse>()
+
+        // when
+        chatService.markConversationRead(userB, conversation.id)
+
+        // then
+        verify(exactly = 1) {
+            messagingTemplate.convertAndSendToUser(userA.id, "/queue/read-receipts", capture(receiptSlot))
+        }
+        assertThat(receiptSlot.captured.readBy).isEqualTo(userB.id)
+    }
+
+    @Test
+    fun `markConversationRead does not send receipt when no messages were updated`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+        every { messageRepo.markConversationRead(conversation, userA, any()) } returns 0
+
+        // when
+        chatService.markConversationRead(userA, conversation.id)
+
+        // then
+        verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
+    }
+
+    @Test
+    fun `markConversationRead throws EntryNotFoundException when conversation not found`() {
+        // given
+        every { conversationRepo.findById("nonexistent") } returns Optional.empty()
+
+        // then
+        assertThatThrownBy {
+            chatService.markConversationRead(UserBuilder().build(), "nonexistent")
+        }.isInstanceOf(EntryNotFoundException::class.java)
+            .satisfies({ ex ->
+                val e = ex as EntryNotFoundException
+                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.CONVERSATION_NOT_FOUND)
+            })
+
+        verify(exactly = 0) { messageRepo.markConversationRead(any(), any(), any()) }
+    }
+
+    @Test
+    fun `markConversationRead throws AccessDeniedException when user is not a member`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val otherUser = UserBuilder().build(email = "other@firma.de", firstName = "Other", lastName = "User")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+
+        // then
+        assertThatThrownBy {
+            chatService.markConversationRead(otherUser, conversation.id)
+        }.isInstanceOf(AccessDeniedException::class.java)
+            .satisfies({ ex ->
+                val e = ex as AccessDeniedException
+                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.CONVERSATION_ACCESS_DENIED)
+            })
+
+        verify(exactly = 0) { messageRepo.markConversationRead(any(), any(), any()) }
+    }
+
+    @Test
+    fun `notifyTyping sends typing event to partner`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
+        val typingSlot = slot<TypingResponse>()
+
+        // when
+        chatService.notifyTyping(userA, conversation.id)
+
+        // then
+        verify(exactly = 1) {
+            messagingTemplate.convertAndSendToUser(userB.id, "/queue/typing", capture(typingSlot))
+        }
+        assertThat(typingSlot.captured.conversationId).isEqualTo(conversation.id)
+        assertThat(typingSlot.captured.userId).isEqualTo(userA.id)
+    }
+
+    @Test
+    fun `notifyTyping throws EntryNotFoundException when conversation not found`() {
+        // given
+        every { conversationRepo.findById("nonexistent") } returns Optional.empty()
+
+        // then
+        assertThatThrownBy {
+            chatService.notifyTyping(UserBuilder().build(), "nonexistent")
+        }.isInstanceOf(EntryNotFoundException::class.java)
+            .satisfies({ ex ->
+                val e = ex as EntryNotFoundException
+                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.CONVERSATION_NOT_FOUND)
+            })
+
+        verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
+    }
+
+    @Test
+    fun `notifyTyping throws AccessDeniedException when user is not a member`() {
+        // given
+        val userA = UserBuilder().build()
+        val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
+        val otherUser = UserBuilder().build(email = "other@firma.de", firstName = "Other", lastName = "User")
+        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
+        every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
+
+        // then
+        assertThatThrownBy {
+            chatService.notifyTyping(otherUser, conversation.id)
+        }.isInstanceOf(AccessDeniedException::class.java)
+            .satisfies({ ex ->
+                val e = ex as AccessDeniedException
+                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.CONVERSATION_ACCESS_DENIED)
+            })
+
+        verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
     }
 }

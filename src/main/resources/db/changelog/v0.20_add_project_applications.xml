@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="add-project-applications-table" author="efehan">
+        <createTable tableName="project_applications">
+            <column name="id" type="VARCHAR(255)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_project_applications"/>
+            </column>
+            <column name="created_date" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="last_modified_by" type="VARCHAR(255)"/>
+            <column name="last_modified_date" type="DATETIME"/>
+            <column name="project_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="applied_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="decided_at" type="DATETIME"/>
+            <column name="decided_by_id" type="VARCHAR(255)"/>
+            <column name="message" type="VARCHAR(1000)"/>
+        </createTable>
+    </changeSet>
+    <changeSet id="add-project-applications-fk-project" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="project_id" baseTableName="project_applications"
+                                 constraintName="FK_PROJECT_APPLICATIONS_ON_PROJECT" referencedColumnNames="id"
+                                 referencedTableName="projects"/>
+    </changeSet>
+    <changeSet id="add-project-applications-fk-user" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="user_id" baseTableName="project_applications"
+                                 constraintName="FK_PROJECT_APPLICATIONS_ON_USER" referencedColumnNames="id"
+                                 referencedTableName="users"/>
+    </changeSet>
+    <changeSet id="add-project-applications-fk-decided-by" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="decided_by_id" baseTableName="project_applications"
+                                 constraintName="FK_PROJECT_APPLICATIONS_ON_DECIDED_BY" referencedColumnNames="id"
+                                 referencedTableName="users"/>
+    </changeSet>
+    <changeSet id="add-project-applications-uc" author="efehan">
+        <addUniqueConstraint tableName="project_applications"
+                             columnNames="project_id,user_id,status"
+                             constraintName="uc_project_applications_project_user_status"/>
+    </changeSet>
+    <changeSet id="add-project-applications-idx-project-status" author="efehan">
+        <createIndex tableName="project_applications" indexName="idx_applications_project_status">
+            <column name="project_id"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="add-project-applications-idx-user" author="efehan">
+        <createIndex tableName="project_applications" indexName="idx_applications_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

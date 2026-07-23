@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="opt-matching-create-skill-relations" author="efehan">
+        <createTable tableName="skill_relations">
+            <column name="id" type="VARCHAR(255)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_skill_relations"/>
+            </column>
+            <column name="created_date" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="last_modified_by" type="VARCHAR(255)"/>
+            <column name="last_modified_date" type="DATETIME"/>
+            <column name="from_skill_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="to_skill_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="relation_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transfer_penalty" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="opt-matching-create-skill-relations-fk-from" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="from_skill_id" baseTableName="skill_relations"
+                                 constraintName="FK_SKILL_RELATIONS_ON_FROM_SKILL" referencedColumnNames="id"
+                                 referencedTableName="skills"/>
+    </changeSet>
+    <changeSet id="opt-matching-create-skill-relations-fk-to" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="to_skill_id" baseTableName="skill_relations"
+                                 constraintName="FK_SKILL_RELATIONS_ON_TO_SKILL" referencedColumnNames="id"
+                                 referencedTableName="skills"/>
+    </changeSet>
+    <changeSet id="opt-matching-create-skill-relations-uc" author="efehan">
+        <addUniqueConstraint tableName="skill_relations"
+                             columnNames="from_skill_id,to_skill_id,relation_type"
+                             constraintName="uc_skill_relations_from_to_type"/>
+    </changeSet>
+</databaseChangeLog>

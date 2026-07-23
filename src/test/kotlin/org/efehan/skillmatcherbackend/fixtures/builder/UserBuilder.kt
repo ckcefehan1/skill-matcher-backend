@@ -11,6 +11,7 @@ class UserBuilder {
         lastName: String? = "Mustermann",
         role: RoleModel = RoleBuilder().build(),
         isEnabled: Boolean = true,
+        maxConcurrentProjects: Int = 3,
     ): UserModel {
         val user =
             UserModel(
@@ -19,6 +20,7 @@ class UserBuilder {
                 firstName = firstName,
                 lastName = lastName,
                 role = role,
+                maxConcurrentProjects = maxConcurrentProjects,
             )
         user.isEnabled = isEnabled
         return user

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Application <span th:text="${accepted} ? 'Accepted' : 'Declined'">Update</span></h1>
+    <p>Hello <span th:text="${firstName}">User</span>,</p>
+    <p th:if="${accepted}">
+        Your application for the project "<span th:text="${projectName}">Project</span>" has been accepted.
+        You are now a member of this project.
+    </p>
+    <p th:unless="${accepted}">
+        Your application for the project "<span th:text="${projectName}">Project</span>" has been declined.
+    </p>
+    <p th:if="${reason != null and !reason.isEmpty()}">
+        <strong>Reason:</strong><br/>
+        <span th:text="${reason}"></span>
+    </p>
+</body>
+</html>

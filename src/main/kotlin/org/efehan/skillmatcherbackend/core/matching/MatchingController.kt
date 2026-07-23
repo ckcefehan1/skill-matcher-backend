@@ -117,7 +117,9 @@ class MatchingController(
         @RequestParam(defaultValue = "20")
         @Min(1)
         limit: Int,
-    ): List<UserMatchDto> = matchingService.findCandidatesForProject(projectId, minScore, limit)
+        @RequestParam(defaultValue = "ALL")
+        tier: MatchTier,
+    ): List<UserMatchDto> = matchingService.findCandidatesForProject(projectId, minScore, limit, tier)
 
     @Operation(
         summary = "Find matching projects for me",
@@ -163,5 +165,7 @@ class MatchingController(
         @RequestParam(defaultValue = "20")
         @Min(1)
         limit: Int,
-    ): List<ProjectMatchDto> = matchingService.findProjectsForUser(securityUser.user, minScore, limit)
+        @RequestParam(defaultValue = "ALL")
+        tier: MatchTier,
+    ): List<ProjectMatchDto> = matchingService.findProjectsForUser(securityUser.user, minScore, limit, tier)
 }

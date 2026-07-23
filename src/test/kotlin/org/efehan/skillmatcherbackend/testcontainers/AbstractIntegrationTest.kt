@@ -5,11 +5,13 @@ import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
 import org.efehan.skillmatcherbackend.persistence.PasswordResetTokenRepository
+import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillRepository
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
+import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
 import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserAvailabilityRepository
 import org.efehan.skillmatcherbackend.persistence.UserRepository
@@ -58,6 +60,9 @@ abstract class AbstractIntegrationTest {
     protected lateinit var skillRepository: SkillRepository
 
     @Autowired
+    protected lateinit var skillRelationRepository: SkillRelationRepository
+
+    @Autowired
     protected lateinit var projectSkillRepository: ProjectSkillRepository
 
     @Autowired
@@ -65,6 +70,9 @@ abstract class AbstractIntegrationTest {
 
     @Autowired
     protected lateinit var projectMemberRepository: ProjectMemberRepository
+
+    @Autowired
+    protected lateinit var applicationRepository: ProjectApplicationRepository
 
     @Autowired
     protected lateinit var userAvailabilityRepository: UserAvailabilityRepository
@@ -79,11 +87,13 @@ abstract class AbstractIntegrationTest {
     fun cleanUp() {
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()
+        applicationRepository.deleteAll()
         projectMemberRepository.deleteAll()
         projectSkillRepository.deleteAll()
         projectRepository.deleteAll()
         userAvailabilityRepository.deleteAll()
         userSkillRepository.deleteAll()
+        skillRelationRepository.deleteAll()
         skillRepository.deleteAll()
         passwordResetTokenRepository.deleteAll()
         invitationTokenRepository.deleteAll()

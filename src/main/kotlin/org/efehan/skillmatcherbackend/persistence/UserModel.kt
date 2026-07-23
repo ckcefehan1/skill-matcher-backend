@@ -34,6 +34,8 @@ class UserModel(
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     var role: RoleModel,
+    @Column(name = "max_concurrent_projects", nullable = false)
+    var maxConcurrentProjects: Int = 3,
 ) : AuditingBaseEntity() {
     @Column(name = "is_enabled", nullable = false)
     var isEnabled: Boolean = false
