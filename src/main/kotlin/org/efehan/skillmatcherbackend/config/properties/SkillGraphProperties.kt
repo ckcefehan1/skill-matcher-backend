@@ -7,5 +7,5 @@ data class SkillGraphProperties(
     val enabled: Boolean = true,
     val minCoOccurrence: Int = 5,
     val derivationEnabled: Boolean = true,
-    val maxTransferPenalty: Double = 0.5,
+    val minTransferPenalty: Double = 0.5,
 )

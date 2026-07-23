@@ -1,7 +1,7 @@
 package org.efehan.skillmatcherbackend.core.skill
 
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
@@ -14,8 +14,8 @@ data class CreateSkillRelationRequest(
     val toSkillId: String,
     @field:NotNull
     val relationType: SkillRelationType,
-    @field:Min(0)
-    @field:Max(1)
+    @field:DecimalMin("0.0")
+    @field:DecimalMax("1.0")
     val transferPenalty: Double,
 )
 

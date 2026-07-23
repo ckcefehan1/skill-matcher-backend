@@ -102,6 +102,22 @@ interface ProjectApplicationRepository : JpaRepository<ProjectApplicationModel, 
         pageable: Pageable,
     ): Page<ProjectApplicationModel>
 
+    @Query(
+        value = """
+        SELECT a FROM ProjectApplicationModel a
+        WHERE a.project = :project
+        ORDER BY CASE WHEN a.status = org.efehan.skillmatcherbackend.persistence.ApplicationStatus.PENDING THEN 0 ELSE 1 END, a.appliedAt DESC
+        """,
+        countQuery = """
+        SELECT count(a) FROM ProjectApplicationModel a
+        WHERE a.project = :project
+        """,
+    )
+    fun findByProjectPendingFirst(
+        project: ProjectModel,
+        pageable: Pageable,
+    ): Page<ProjectApplicationModel>
+
     fun findByUser(
         user: UserModel,
         pageable: Pageable,

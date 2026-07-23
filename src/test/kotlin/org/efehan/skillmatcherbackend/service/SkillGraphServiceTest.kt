@@ -83,7 +83,7 @@ class SkillGraphServiceTest {
     }
 
     @Test
-    fun `expandSkills filters out relations below maxTransferPenalty`() {
+    fun `expandSkills filters out relations below minTransferPenalty`() {
         val kotlin = SkillBuilder().build(name = "kotlin")
         val java = SkillBuilder().build(name = "java")
         val python = SkillBuilder().build(name = "python")

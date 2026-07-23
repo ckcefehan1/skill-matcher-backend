@@ -31,17 +31,18 @@ class SkillGraphService(
     /**
      * Returns, for each input skill, the list of related skills with their transfer penalty
      * (1.0 = identical fit, 0.0 = unrelated). Relations are bidirectional: a relation A→B also
-     * makes B a relative of A. Relations below [SkillGraphProperties.maxTransferPenalty] are filtered out.
+     * makes B a relative of A. Relations below [SkillGraphProperties.minTransferPenalty] are filtered out.
      */
     @Transactional(readOnly = true)
     fun expandSkills(skills: List<SkillModel>): Map<String, List<SkillRelationInfo>> {
+        if (!properties.enabled) return emptyMap()
         if (skills.isEmpty()) return emptyMap()
         val byId = skills.associateBy { it.id }
         val relations = skillRelationRepo.findBySkillIn(skills)
 
         val result = mutableMapOf<String, MutableList<SkillRelationInfo>>()
         for (relation in relations) {
-            if (relation.transferPenalty < properties.maxTransferPenalty) continue
+            if (relation.transferPenalty < properties.minTransferPenalty) continue
             val (fromId, toSkill) =
                 if (byId.containsKey(relation.fromSkill.id)) {
                     relation.fromSkill.id to relation.toSkill

@@ -152,7 +152,11 @@ class ApplicationService(
                 status = HttpStatus.FORBIDDEN,
             )
         }
-        return applicationRepo.findByProject(project, pageable)
+        return if (pageable.sort.isUnsorted) {
+            applicationRepo.findByProjectPendingFirst(project, pageable)
+        } else {
+            applicationRepo.findByProject(project, pageable)
+        }
     }
 
     @Transactional(readOnly = true)

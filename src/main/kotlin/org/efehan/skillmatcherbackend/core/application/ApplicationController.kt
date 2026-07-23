@@ -78,7 +78,9 @@ class ApplicationController(
 
     @Operation(
         summary = "List applications for a project",
-        description = "Returns all applications for a project, PENDING first. Only the project owner (PROJECTMANAGER) can view.",
+        description =
+            "Returns all applications for a project, PENDING first by default (overridable via sort param). " +
+                "Only the project owner (PROJECTMANAGER) can view.",
     )
     @ApiResponses(
         value = [
@@ -106,7 +108,7 @@ class ApplicationController(
     fun listForProject(
         @AuthenticationPrincipal securityUser: SecurityUser,
         @PathVariable projectId: String,
-        @PageableDefault(size = 20, sort = ["appliedAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+        @PageableDefault(size = 20) pageable: Pageable,
     ): Page<ApplicationDto> = service.listForProject(securityUser.user, projectId, pageable).map { it.toDTO() }
 
     @Operation(
