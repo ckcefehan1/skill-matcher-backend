@@ -9,7 +9,6 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.application.ApplicationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
-import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
@@ -46,9 +45,6 @@ class ApplicationServiceTest {
     private lateinit var memberRepo: ProjectMemberRepository
 
     @MockK
-    private lateinit var memberService: ProjectMemberService
-
-    @MockK
     private lateinit var emailService: EmailService
 
     private lateinit var service: ApplicationService
@@ -64,7 +60,6 @@ class ApplicationServiceTest {
                 applicationRepo = applicationRepo,
                 projectRepo = projectRepo,
                 memberRepo = memberRepo,
-                memberService = memberService,
                 emailService = emailService,
             )
         every { emailService.sendApplicationSubmittedEmail(any(), any(), any(), any()) } just runs
@@ -133,10 +128,9 @@ class ApplicationServiceTest {
     // --- accept ---
 
     @Test
-    fun `accept sets status ACCEPTED, adds member, and notifies applicant`() {
+    fun `accept sets status ACCEPTED and notifies applicant without adding member`() {
         val application = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.PENDING)
         every { applicationRepo.findByIdOrNull(application.id) } returns application
-        every { memberService.addMember(pm, project.id, employer.id) } returns ProjectMemberBuilder().build()
         every { applicationRepo.save(any()) } returnsArgument 0
 
         val result = service.accept(pm, application.id)
@@ -144,7 +138,7 @@ class ApplicationServiceTest {
         assertThat(result.status).isEqualTo(ApplicationStatus.ACCEPTED)
         assertThat(result.decidedBy?.id).isEqualTo(pm.id)
         assertThat(result.decidedAt).isNotNull()
-        verify { memberService.addMember(pm, project.id, employer.id) }
+        verify(exactly = 0) { memberRepo.save(any()) }
         verify { emailService.sendApplicationDecidedEmail(employer, project, true, null) }
     }
 

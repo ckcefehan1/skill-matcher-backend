@@ -1,9 +1,11 @@
 package org.efehan.skillmatcherbackend.integration.api
 
 import org.efehan.skillmatcherbackend.core.auth.JwtService
+import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectMemberBuilder
 import org.efehan.skillmatcherbackend.fixtures.requests.ProjectMemberFixtures
+import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -50,6 +52,9 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
             )
         val project = projectRepository.save(ProjectBuilder().build(owner = owner))
         val token = jwtService.generateAccessToken(owner)
+        applicationRepository.save(
+            ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED),
+        )
 
         // when & then
         mockMvc
@@ -62,6 +67,44 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
                 jsonPath("$.status") { value("ACTIVE") }
                 jsonPath("$.userName") { value("${member.firstName} ${member.lastName}") }
                 jsonPath("$.email") { value(member.email) }
+            }
+    }
+
+    @Test
+    fun `should return 403 without accepted application`() {
+        // given
+        val role = roleRepository.save(RoleModel("PROJECTMANAGER", null))
+        val owner =
+            userRepository.save(
+                UserModel(
+                    email = "owner@firma.de",
+                    passwordHash = passwordEncoder.encode("Test-Password1!"),
+                    firstName = "Test",
+                    lastName = "User",
+                    role = role,
+                ).apply { isEnabled = true },
+            )
+        val member =
+            userRepository.save(
+                UserModel(
+                    email = "member@firma.de",
+                    passwordHash = passwordEncoder.encode("Test-Password1!"),
+                    firstName = "Test",
+                    lastName = "User",
+                    role = role,
+                ).apply { isEnabled = true },
+            )
+        val project = projectRepository.save(ProjectBuilder().build(owner = owner))
+        val token = jwtService.generateAccessToken(owner)
+
+        // when & then
+        mockMvc
+            .post("/api/projects/${project.id}/members") {
+                header("Authorization", "Bearer $token")
+                withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = member.id))
+            }.andExpect {
+                status { isForbidden() }
+                jsonPath("$.errorCode") { value("PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION") }
             }
     }
 
@@ -91,6 +134,9 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
             )
         val project = projectRepository.save(ProjectBuilder().build(owner = owner))
         val token = jwtService.generateAccessToken(owner)
+        applicationRepository.save(
+            ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED),
+        )
         projectMemberRepository.save(ProjectMemberBuilder().build(project = project, user = member))
 
         // when & then
@@ -130,6 +176,9 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
             )
         val project = projectRepository.save(ProjectBuilder().build(owner = owner))
         val token = jwtService.generateAccessToken(owner)
+        applicationRepository.save(
+            ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED),
+        )
         projectMemberRepository.save(
             ProjectMemberBuilder().build(project = project, user = member, status = ProjectMemberStatus.LEFT),
         )
@@ -192,6 +241,9 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         val project = projectRepository.save(ProjectBuilder().build(owner = owner, maxMembers = 2))
         val token = jwtService.generateAccessToken(owner)
 
+        applicationRepository.save(
+            ProjectApplicationBuilder().build(project = project, user = newMember, status = ApplicationStatus.ACCEPTED),
+        )
         projectMemberRepository.save(ProjectMemberBuilder().build(project = project, user = member1))
         projectMemberRepository.save(ProjectMemberBuilder().build(project = project, user = member2))
 

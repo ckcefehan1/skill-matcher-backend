@@ -1,7 +1,6 @@
 package org.efehan.skillmatcherbackend.core.application
 
 import org.efehan.skillmatcherbackend.core.mail.EmailService
-import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationModel
@@ -27,7 +26,6 @@ class ApplicationService(
     private val applicationRepo: ProjectApplicationRepository,
     private val projectRepo: ProjectRepository,
     private val memberRepo: ProjectMemberRepository,
-    private val memberService: ProjectMemberService,
     private val emailService: EmailService,
 ) {
     fun apply(
@@ -84,8 +82,6 @@ class ApplicationService(
         application.status = ApplicationStatus.ACCEPTED
         application.decidedAt = Instant.now()
         application.decidedBy = pm
-
-        memberService.addMember(pm, application.project.id, application.user.id)
 
         emailService.sendApplicationDecidedEmail(
             applicant = application.user,

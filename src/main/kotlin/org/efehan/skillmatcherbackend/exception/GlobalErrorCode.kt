@@ -43,6 +43,7 @@ enum class GlobalErrorCode(
     // Project Members
     PROJECT_MEMBER_NOT_FOUND("Project member could not be found."),
     PROJECT_MEMBER_DUPLICATE("User is already a member of this project."),
+    PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION("User can only be added after an accepted application."),
     PROJECT_FULL("Project has reached its maximum number of members."),
 
     // Project Applications

@@ -222,7 +222,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
     // --- accept ---
 
     @Test
-    fun `project owner can accept an application and user becomes member`() {
+    fun `project owner can accept an application and user does not become member automatically`() {
         val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
         val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
         val token = jwtService.generateAccessToken(pm)
@@ -242,8 +242,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
             }
 
         val member = projectMemberRepository.findByProjectAndUser(project, employer)
-        assertThat(member).isNotNull
-        assertThat(member?.status).isEqualTo(ProjectMemberStatus.ACTIVE)
+        assertThat(member).isNull()
     }
 
     @Test
