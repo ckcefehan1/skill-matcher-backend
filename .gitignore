@@ -33,7 +33,7 @@ out/
 /nbbuild/
 /dist/
 /nbdist/
-.claude
+../.claude
 /.nb-gradle/
 
 ### VS Code ###

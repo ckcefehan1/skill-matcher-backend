@@ -42,6 +42,7 @@ class ProjectModel(
             startDate = startDate,
             endDate = endDate,
             maxMembers = maxMembers,
+            ownerId = owner.id,
             ownerName = "${owner.firstName} ${owner.lastName}",
             createdDate = createdDate,
         )
