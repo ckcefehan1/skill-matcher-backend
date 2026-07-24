@@ -44,6 +44,7 @@ data class ProjectDto(
     val startDate: LocalDate,
     val endDate: LocalDate,
     val maxMembers: Int,
+    val ownerId: String,
     val ownerName: String,
     val createdDate: Instant?,
 )
