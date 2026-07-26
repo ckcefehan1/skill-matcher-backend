@@ -10,6 +10,7 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
+import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
 import org.efehan.skillmatcherbackend.core.auth.AuthenticationService
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
@@ -54,6 +55,9 @@ class AuthenticationServiceTest {
     private lateinit var jwtProperties: JwtProperties
 
     @MockK
+    private lateinit var loginLockoutProperties: LoginLockoutProperties
+
+    @MockK
     private lateinit var passwordEncoder: PasswordEncoder
 
     @MockK
@@ -81,6 +85,8 @@ class AuthenticationServiceTest {
         every { clock.instant() } returns FIXED_INSTANT
         every { jwtProperties.accessTokenExpiration } returns ACCESS_TOKEN_EXPIRATION
         every { jwtProperties.refreshTokenExpiration } returns REFRESH_TOKEN_EXPIRATION
+        every { loginLockoutProperties.maxFailedAttempts } returns 5
+        every { loginLockoutProperties.lockoutDurationMinutes } returns 15
     }
 
     @Test

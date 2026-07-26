@@ -1,5 +1,6 @@
-package org.efehan.skillmatcherbackend.core.mail.rabbit
+package org.efehan.skillmatcherbackend.config
 
+import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.springframework.amqp.core.BindingBuilder
 import org.springframework.amqp.core.QueueBuilder
 import org.springframework.amqp.core.TopicExchange
@@ -16,30 +17,25 @@ import tools.jackson.databind.json.JsonMapper
 
 @Configuration
 @ConditionalOnProperty(name = ["mail.rabbitmq.enabled"], havingValue = "true")
-class RabbitMailConfig {
-    companion object {
-        const val EXCHANGE = "skill-matcher.events"
-        const val MAIL_QUEUE = "mail.send"
-        const val MAIL_DLQ = "mail.send.dlq"
-        const val ROUTING_KEY = "mail.send"
-    }
-
+class RabbitMailConfig(
+    private val properties: RabbitMQProperties,
+) {
     @Bean
-    fun mailExchange() = TopicExchange(EXCHANGE)
+    fun mailExchange() = TopicExchange(properties.exchange)
 
     @Bean
     fun mailQueue() =
         QueueBuilder
-            .durable(MAIL_QUEUE)
+            .durable(properties.mailQueue)
             .withArgument("x-dead-letter-exchange", "")
-            .withArgument("x-dead-letter-routing-key", MAIL_DLQ)
+            .withArgument("x-dead-letter-routing-key", properties.mailDlq)
             .build()
 
     @Bean
-    fun mailDlq() = QueueBuilder.durable(MAIL_DLQ).build()
+    fun mailDlq() = QueueBuilder.durable(properties.mailDlq).build()
 
     @Bean
-    fun mailBinding() = BindingBuilder.bind(mailQueue()).to(mailExchange()).with(ROUTING_KEY)
+    fun mailBinding() = BindingBuilder.bind(mailQueue()).to(mailExchange()).with(properties.mailRoutingKey)
 
     @Bean
     fun mailMessageConverter(): MessageConverter = JacksonJsonMessageConverter(JsonMapper.builder().findAndAddModules().build())
@@ -64,9 +60,12 @@ class RabbitMailConfig {
         factory.setAdviceChain(
             RetryInterceptorBuilder
                 .stateless()
-                .maxRetries(2) // 3 delivery attempts total, then DLQ
-                .backOffOptions(1000, 2.0, 5000)
-                .build(),
+                .maxRetries(properties.retry.maxRetries) // plus initial delivery, then DLQ
+                .backOffOptions(
+                    properties.retry.initialIntervalMs,
+                    properties.retry.multiplier,
+                    properties.retry.maxIntervalMs,
+                ).build(),
         )
         return factory
     }

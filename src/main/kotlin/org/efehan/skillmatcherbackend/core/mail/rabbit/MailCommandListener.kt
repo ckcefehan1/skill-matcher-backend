@@ -21,7 +21,7 @@ class MailCommandListener(
 ) {
     private val logger = LoggerFactory.getLogger(MailCommandListener::class.java)
 
-    @RabbitListener(queues = [RabbitMailConfig.MAIL_QUEUE], containerFactory = "mailRabbitListenerContainerFactory")
+    @RabbitListener(queues = ["\${rabbitmq.mail-queue}"], containerFactory = "mailRabbitListenerContainerFactory")
     fun handle(command: MailCommand) {
         when (command) {
             is MailCommand.Invitation ->

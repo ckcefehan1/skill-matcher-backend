@@ -1,15 +1,15 @@
 package org.efehan.skillmatcherbackend.service
 
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.verify
+import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommand
 import org.efehan.skillmatcherbackend.core.mail.rabbit.RabbitEmailService
-import org.efehan.skillmatcherbackend.core.mail.rabbit.RabbitMailConfig
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -22,8 +22,13 @@ class RabbitEmailServiceTest {
     @MockK(relaxed = true)
     private lateinit var rabbitTemplate: RabbitTemplate
 
-    @InjectMockKs
+    private val properties = RabbitMQProperties()
     private lateinit var rabbitEmailService: RabbitEmailService
+
+    @BeforeEach
+    fun setUp() {
+        rabbitEmailService = RabbitEmailService(rabbitTemplate, properties)
+    }
 
     @AfterEach
     fun tearDown() {
@@ -45,8 +50,8 @@ class RabbitEmailServiceTest {
         // then
         verify(exactly = 1) {
             rabbitTemplate.convertAndSend(
-                RabbitMailConfig.EXCHANGE,
-                RabbitMailConfig.ROUTING_KEY,
+                properties.exchange,
+                properties.mailRoutingKey,
                 MailCommand.Invitation(user.id, "token-123", 72),
             )
         }
@@ -70,8 +75,8 @@ class RabbitEmailServiceTest {
         // then
         verify(exactly = 1) {
             rabbitTemplate.convertAndSend(
-                RabbitMailConfig.EXCHANGE,
-                RabbitMailConfig.ROUTING_KEY,
+                properties.exchange,
+                properties.mailRoutingKey,
                 MailCommand.PasswordReset(user.id, "reset-token", 24),
             )
         }
@@ -88,8 +93,8 @@ class RabbitEmailServiceTest {
         // then
         verify(exactly = 1) {
             rabbitTemplate.convertAndSend(
-                RabbitMailConfig.EXCHANGE,
-                RabbitMailConfig.ROUTING_KEY,
+                properties.exchange,
+                properties.mailRoutingKey,
                 MailCommand.Welcome(user.id),
             )
         }

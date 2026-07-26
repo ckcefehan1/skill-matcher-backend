@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.auth
 
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
+import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
@@ -23,8 +24,6 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 private const val REFRESH_ROTATION_THRESHOLD_DAYS = 2L
-private const val MAX_FAILED_LOGIN_ATTEMPTS = 5
-private val LOCKOUT_DURATION: Duration = Duration.ofMinutes(15)
 
 @Service
 @Transactional
@@ -34,6 +33,7 @@ class AuthenticationService(
     private val jwtService: JwtService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtProperties: JwtProperties,
+    private val loginLockoutProperties: LoginLockoutProperties,
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
     private val clock: Clock = Clock.systemUTC(),
@@ -172,8 +172,8 @@ class AuthenticationService(
         now: Instant,
     ) {
         user.failedLoginAttempts += 1
-        if (user.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-            user.lockedUntil = now.plus(LOCKOUT_DURATION)
+        if (user.failedLoginAttempts >= loginLockoutProperties.maxFailedAttempts) {
+            user.lockedUntil = now.plus(Duration.ofMinutes(loginLockoutProperties.lockoutDurationMinutes))
             user.failedLoginAttempts = 0
         }
         userRepository.save(user)

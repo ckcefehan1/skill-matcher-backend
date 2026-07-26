@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.mail.rabbit
 
+import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -15,6 +16,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @ConditionalOnProperty(name = ["mail.rabbitmq.enabled"], havingValue = "true")
 class RabbitEmailService(
     private val rabbitTemplate: RabbitTemplate,
+    private val properties: RabbitMQProperties,
 ) : EmailService {
     override fun sendInvitationEmail(
         user: UserModel,
@@ -88,6 +90,6 @@ class RabbitEmailService(
     }
 
     private fun publish(command: MailCommand) {
-        rabbitTemplate.convertAndSend(RabbitMailConfig.EXCHANGE, RabbitMailConfig.ROUTING_KEY, command)
+        rabbitTemplate.convertAndSend(properties.exchange, properties.mailRoutingKey, command)
     }
 }
