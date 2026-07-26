@@ -78,4 +78,37 @@ class TemplateService(
             }
         return templateEngine.process("application-decided", context)
     }
+
+    fun renderProjectInvitation(
+        invitee: UserModel,
+        pm: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ): String {
+        val context =
+            Context().apply {
+                setVariable("firstName", invitee.firstName ?: "User")
+                setVariable("pmName", "${pm.firstName ?: ""} ${pm.lastName ?: ""}".trim())
+                setVariable("projectName", project.name)
+                setVariable("message", message)
+            }
+        return templateEngine.process("project-invitation", context)
+    }
+
+    fun renderProjectInvitationResponse(
+        pm: UserModel,
+        employer: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+    ): String {
+        val context =
+            Context().apply {
+                setVariable("pmFirstName", pm.firstName ?: "Project Manager")
+                setVariable("employerName", "${employer.firstName ?: ""} ${employer.lastName ?: ""}".trim())
+                setVariable("employerEmail", employer.email)
+                setVariable("projectName", project.name)
+                setVariable("accepted", accepted)
+            }
+        return templateEngine.process("project-invitation-response", context)
+    }
 }

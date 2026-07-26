@@ -396,4 +396,243 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
             .get("/api/me/applications")
             .andExpect { status { isUnauthorized() } }
     }
+
+    // --- invite ---
+
+    @Test
+    fun `project owner can invite a user and gets 201 with INVITED`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(pm)
+        val project = createProject(pm)
+
+        mockMvc
+            .post("/api/projects/${project.id}/invitations") {
+                header("Authorization", "Bearer $token")
+                withBodyRequest(mapOf("userId" to employer.id, "message" to "Join us"))
+            }.andExpect {
+                status { isCreated() }
+                jsonPath("$.status") { value("INVITED") }
+                jsonPath("$.userId") { value(employer.id) }
+                jsonPath("$.message") { value("Join us") }
+            }
+    }
+
+    @Test
+    fun `employer gets 403 when trying to invite`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(employer)
+        val project = createProject(pm)
+
+        mockMvc
+            .post("/api/projects/${project.id}/invitations") {
+                header("Authorization", "Bearer $token")
+                withBodyRequest(mapOf("userId" to employer.id))
+            }.andExpect { status { isForbidden() } }
+    }
+
+    @Test
+    fun `non-owner project manager gets 403 when inviting`() {
+        val (_, pm1) = createRoleAndUser("PROJECTMANAGER", "pm1@firma.de")
+        val (_, pm2) = createRoleAndUser("PROJECTMANAGER", "pm2@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(pm2)
+        val project = createProject(pm1)
+
+        mockMvc
+            .post("/api/projects/${project.id}/invitations") {
+                header("Authorization", "Bearer $token")
+                withBodyRequest(mapOf("userId" to employer.id))
+            }.andExpect {
+                status { isForbidden() }
+                jsonPath("$.errorCode") { value("APPLICATION_ACCESS_DENIED") }
+            }
+    }
+
+    @Test
+    fun `project owner gets 409 when inviting user with pending application`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(pm)
+        val project = createProject(pm)
+        applicationRepository.save(
+            ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.PENDING),
+        )
+
+        mockMvc
+            .post("/api/projects/${project.id}/invitations") {
+                header("Authorization", "Bearer $token")
+                withBodyRequest(mapOf("userId" to employer.id))
+            }.andExpect {
+                status { isConflict() }
+                jsonPath("$.errorCode") { value("APPLICATION_DUPLICATE") }
+            }
+    }
+
+    // --- acceptInvitation ---
+
+    @Test
+    fun `invited employer can accept and becomes project member`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(employer)
+        val project = createProject(pm)
+        val invitation =
+            applicationRepository.save(
+                ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED),
+            )
+
+        mockMvc
+            .post("/api/applications/${invitation.id}/accept-invitation") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.status") { value("ACCEPTED") }
+                jsonPath("$.decidedById") { value(employer.id) }
+            }
+
+        val member = projectMemberRepository.findByProjectAndUser(project, employer)
+        assertThat(member).isNotNull()
+        assertThat(member!!.status).isEqualTo(ProjectMemberStatus.ACTIVE)
+    }
+
+    @Test
+    fun `other employer gets 403 when accepting someone elses invitation`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer1) = createRoleAndUser("EMPLOYER", "emp1@firma.de")
+        val (_, employer2) = createRoleAndUser("EMPLOYER", "emp2@firma.de")
+        val token = jwtService.generateAccessToken(employer2)
+        val project = createProject(pm)
+        val invitation =
+            applicationRepository.save(
+                ProjectApplicationBuilder().build(project = project, user = employer1, status = ApplicationStatus.INVITED),
+            )
+
+        mockMvc
+            .post("/api/applications/${invitation.id}/accept-invitation") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isForbidden() }
+                jsonPath("$.errorCode") { value("APPLICATION_ACCESS_DENIED") }
+            }
+    }
+
+    @Test
+    fun `accepting invitation for full project returns 409 and invitation stays INVITED`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, member1) = createRoleAndUser("EMPLOYER", "member1@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(employer)
+        val project =
+            projectRepository.save(
+                ProjectModel(
+                    name = "Full Project",
+                    description = "Test Description",
+                    status = ProjectStatus.PLANNED,
+                    startDate = LocalDate.of(2026, 3, 1),
+                    endDate = LocalDate.of(2026, 9, 1),
+                    maxMembers = 1,
+                    owner = pm,
+                ),
+            )
+        projectMemberRepository.save(ProjectMemberBuilder().build(project = project, user = member1, status = ProjectMemberStatus.ACTIVE))
+        val invitation =
+            applicationRepository.save(
+                ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED),
+            )
+
+        mockMvc
+            .post("/api/applications/${invitation.id}/accept-invitation") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isConflict() }
+                jsonPath("$.errorCode") { value("PROJECT_FULL") }
+            }
+
+        val unchanged = applicationRepository.findById(invitation.id).orElseThrow()
+        assertThat(unchanged.status).isEqualTo(ApplicationStatus.INVITED)
+        assertThat(projectMemberRepository.findByProjectAndUser(project, employer)).isNull()
+    }
+
+    // --- declineInvitation ---
+
+    @Test
+    fun `invited employer can decline invitation`() {
+        val (_, pm) = createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(employer)
+        val project = createProject(pm)
+        val invitation =
+            applicationRepository.save(
+                ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED),
+            )
+
+        mockMvc
+            .post("/api/applications/${invitation.id}/decline-invitation") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.status") { value("DECLINED") }
+                jsonPath("$.decidedById") { value(employer.id) }
+            }
+    }
+
+    // --- user search ---
+
+    @Test
+    fun `project manager can search employer users by name and email`() {
+        createRoleAndUser("PROJECTMANAGER", "pm@firma.de")
+        val (employerRole, _) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val pm = userRepository.findByEmail("pm@firma.de")!!
+        userRepository.save(
+            UserModel(
+                email = "anna@firma.de",
+                passwordHash = "x",
+                firstName = "Anna",
+                lastName = "Schmidt",
+                role = employerRole,
+            ).apply { isEnabled = true },
+        )
+        userRepository.save(
+            UserModel(
+                email = "bert@firma.de",
+                passwordHash = "x",
+                firstName = "Bert",
+                lastName = "Mueller",
+                role = employerRole,
+            ).apply { isEnabled = true },
+        )
+        val token = jwtService.generateAccessToken(pm)
+
+        mockMvc
+            .get("/api/users/search?q=anna") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.content.length()") { value(1) }
+                jsonPath("$.content[0].email") { value("anna@firma.de") }
+                jsonPath("$.content[0].userName") { value("Anna Schmidt") }
+            }
+
+        // PMs are not returned even when matching the query
+        mockMvc
+            .get("/api/users/search?q=pm@firma") {
+                header("Authorization", "Bearer $token")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.content.length()") { value(0) }
+            }
+    }
+
+    @Test
+    fun `employer gets 403 when searching users`() {
+        val (_, employer) = createRoleAndUser("EMPLOYER", "emp@firma.de")
+        val token = jwtService.generateAccessToken(employer)
+
+        mockMvc
+            .get("/api/users/search?q=test") {
+                header("Authorization", "Bearer $token")
+            }.andExpect { status { isForbidden() } }
+    }
 }

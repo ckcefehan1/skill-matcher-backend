@@ -60,4 +60,34 @@ class LoggingEmailService : EmailService {
             reason,
         )
     }
+
+    override fun sendProjectInvitationEmail(
+        invitee: UserModel,
+        pm: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ) {
+        logger.info(
+            "Mock sending project-invitation email to invitee={} from pm={} for project={} message={}",
+            invitee.email,
+            pm.email,
+            project.name,
+            message,
+        )
+    }
+
+    override fun sendProjectInvitationResponseEmail(
+        pm: UserModel,
+        employer: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+    ) {
+        logger.info(
+            "Mock sending project-invitation-response email to pm={} for project={} employer={} accepted={}",
+            pm.email,
+            project.name,
+            employer.email,
+            accepted,
+        )
+    }
 }

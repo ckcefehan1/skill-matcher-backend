@@ -50,6 +50,7 @@ class ProjectApplicationModel(
 
 enum class ApplicationStatus {
     PENDING,
+    INVITED,
     ACCEPTED,
     DECLINED,
     WITHDRAWN,

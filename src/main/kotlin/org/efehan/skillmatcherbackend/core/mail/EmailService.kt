@@ -31,4 +31,18 @@ interface EmailService {
         accepted: Boolean,
         reason: String?,
     )
+
+    fun sendProjectInvitationEmail(
+        invitee: UserModel,
+        pm: UserModel,
+        project: ProjectModel,
+        message: String?,
+    )
+
+    fun sendProjectInvitationResponseEmail(
+        pm: UserModel,
+        employer: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+    )
 }

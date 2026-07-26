@@ -9,7 +9,10 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.efehan.skillmatcherbackend.core.admin.AdminUserDto
 import org.efehan.skillmatcherbackend.core.auth.AuthUserResponse
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
 @Entity
@@ -66,4 +69,30 @@ interface UserRepository : JpaRepository<UserModel, String> {
     fun findByEmail(email: String): UserModel?
 
     fun existsByEmail(email: String): Boolean
+
+    @Query(
+        value = """
+        SELECT u FROM UserModel u
+        WHERE u.role.name = :role AND u.isEnabled = true
+        AND (
+            LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
+        )
+        """,
+        countQuery = """
+        SELECT count(u) FROM UserModel u
+        WHERE u.role.name = :role AND u.isEnabled = true
+        AND (
+            LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
+        )
+        """,
+    )
+    fun searchByRole(
+        role: String,
+        q: String,
+        pageable: Pageable,
+    ): Page<UserModel>
 }

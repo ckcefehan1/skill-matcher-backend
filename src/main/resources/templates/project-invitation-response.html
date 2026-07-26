@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Invitation <span th:text="${accepted} ? 'Accepted' : 'Declined'">Update</span></h1>
+    <p>Hello <span th:text="${pmFirstName}">Project Manager</span>,</p>
+    <p th:if="${accepted}">
+        <span th:text="${employerName}">Employee</span>
+        (<span th:text="${employerEmail}">employee@example.com</span>)
+        has accepted your invitation and is now a member of "<span th:text="${projectName}">Project</span>".
+    </p>
+    <p th:unless="${accepted}">
+        <span th:text="${employerName}">Employee</span>
+        (<span th:text="${employerEmail}">employee@example.com</span>)
+        has declined your invitation to "<span th:text="${projectName}">Project</span>".
+    </p>
+</body>
+</html>

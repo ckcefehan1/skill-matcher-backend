@@ -14,6 +14,12 @@ data class DecideApplicationRequest(
     val reason: String? = null,
 )
 
+data class CreateInvitationRequest(
+    val userId: String,
+    @field:Size(max = 1000, message = "Message must not exceed 1000 characters")
+    val message: String? = null,
+)
+
 data class ApplicationDto(
     val id: String,
     val projectId: String,
