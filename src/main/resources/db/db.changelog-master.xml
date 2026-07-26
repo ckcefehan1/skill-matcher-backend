@@ -34,4 +34,5 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/v0.19_add_skill_relations.xml"/>
     <include file="db/changelog/v0.20_add_project_applications.xml"/>
     <include file="db/changelog/v0.21_add_read_at_to_chat_messages.xml"/>
+    <include file="db/changelog/v0.22_add_login_lockout.xml"/>
 </databaseChangeLog>

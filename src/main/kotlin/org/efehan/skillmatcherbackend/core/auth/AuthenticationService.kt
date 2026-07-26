@@ -6,21 +6,25 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
-import org.efehan.skillmatcherbackend.shared.exceptions.AccountDisabledException
+import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 private const val REFRESH_ROTATION_THRESHOLD_DAYS = 2L
+private const val MAX_FAILED_LOGIN_ATTEMPTS = 5
+private val LOCKOUT_DURATION: Duration = Duration.ofMinutes(15)
 
 @Service
 @Transactional
@@ -34,26 +38,44 @@ class AuthenticationService(
     private val passwordValidationService: PasswordValidationService,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    private val dummyBcryptHash: String by lazy { passwordEncoder.encode("dummy-password")!! }
+
     fun login(
         email: String,
         password: String,
     ): AuthResponse {
-        val user =
-            userRepository.findByEmail(email) ?: throw InvalidCredentialsException(
+        val user = userRepository.findByEmail(email)
+        if (user == null) {
+            // Equalize timing with a real bcrypt comparison to avoid user enumeration
+            passwordEncoder.matches(password, dummyBcryptHash)
+            throw InvalidCredentialsException(
                 errorCode = GlobalErrorCode.BAD_CREDENTIALS,
                 status = HttpStatus.UNAUTHORIZED,
             )
+        }
 
-        if (!user.isEnabled) {
-            throw AccountDisabledException(
-                errorCode = GlobalErrorCode.ACCOUNT_DISABLED,
-                status = HttpStatus.FORBIDDEN,
+        val now = Instant.now(clock)
+        if (user.lockedUntil?.isAfter(now) == true) {
+            throw AccountLockedException(
+                errorCode = GlobalErrorCode.ACCOUNT_LOCKED,
+                status = HttpStatus.LOCKED,
             )
         }
 
-        authenticationManager.authenticate(
-            UsernamePasswordAuthenticationToken(email, password),
-        )
+        try {
+            authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken(email, password),
+            )
+        } catch (exception: BadCredentialsException) {
+            registerFailedLogin(user, now)
+            throw exception
+        }
+
+        if (user.failedLoginAttempts > 0 || user.lockedUntil != null) {
+            user.failedLoginAttempts = 0
+            user.lockedUntil = null
+            userRepository.save(user)
+        }
 
         val accessToken = jwtService.generateAccessToken(user)
 
@@ -143,6 +165,18 @@ class AuthenticationService(
 
     fun logout(userId: String) {
         refreshTokenRepository.revokeAllUserTokens(userId)
+    }
+
+    private fun registerFailedLogin(
+        user: UserModel,
+        now: Instant,
+    ) {
+        user.failedLoginAttempts += 1
+        if (user.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+            user.lockedUntil = now.plus(LOCKOUT_DURATION)
+            user.failedLoginAttempts = 0
+        }
+        userRepository.save(user)
     }
 
     private fun rotateRefreshToken(oldToken: RefreshTokenModel): String {

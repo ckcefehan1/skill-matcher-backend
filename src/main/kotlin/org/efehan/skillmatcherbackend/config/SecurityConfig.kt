@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.config
 
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
+import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -26,13 +28,25 @@ import java.time.Clock
 @EnableMethodSecurity
 class SecurityConfig(
     @Lazy private val jwtAuthFilter: JwtAuthenticationFilter,
+    private val rateLimitingFilter: RateLimitingFilter,
 ) {
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
         http
             .csrf { it.disable() }
             .cors { }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .headers { headers ->
+                // HSTS deliberately omitted: dev runs on plain HTTP, enable with TLS
+                headers
+                    .contentTypeOptions { }
+                    .frameOptions { it.deny() }
+                    .referrerPolicy { it.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER) }
+                    .contentSecurityPolicy {
+                        it.policyDirectives(
+                            "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'",
+                        )
+                    }
+            }.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling {
                 it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             }.authorizeHttpRequests {
@@ -49,7 +63,8 @@ class SecurityConfig(
                     ).permitAll()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.anyRequest().authenticated()
-            }.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
             .build()
 
     @Bean

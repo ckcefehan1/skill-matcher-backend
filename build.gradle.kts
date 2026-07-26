@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.jjwt.api)
     implementation(libs.jjwt.impl)
     implementation(libs.jjwt.jackson)
+    implementation(libs.bucket4j.core)
     developmentOnly(libs.spring.boot.devtools)
     runtimeOnly(libs.postgresql)
     testImplementation(platform(libs.testcontainers.bom))

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
+import java.time.Instant
 
 @Entity
 @Table(
@@ -42,6 +43,12 @@ class UserModel(
 ) : AuditingBaseEntity() {
     @Column(name = "is_enabled", nullable = false)
     var isEnabled: Boolean = false
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    var failedLoginAttempts: Int = 0
+
+    @Column(name = "locked_until", nullable = true)
+    var lockedUntil: Instant? = null
 
     fun toAdminDTO() =
         AdminUserDto(
