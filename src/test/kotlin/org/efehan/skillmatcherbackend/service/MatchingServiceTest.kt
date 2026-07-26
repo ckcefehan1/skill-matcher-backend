@@ -65,7 +65,14 @@ class MatchingServiceTest {
     @MockK
     private lateinit var skillGraphService: SkillGraphService
 
-    private val matchingProperties = MatchingProperties()
+    private val matchingProperties =
+        MatchingProperties(
+            mustHaveCoverageThreshold = 0.6,
+            capacityMode = CapacityMode.SOFT,
+            capacityPenalty = 0.15,
+            mlEnabled = false,
+            mlWeight = 0.3,
+        )
 
     private lateinit var matchingService: MatchingService
 
@@ -707,7 +714,7 @@ class MatchingServiceTest {
         every { projectMemberRepo.countActiveByUserIn(any(), ProjectMemberStatus.ACTIVE) } returns
             listOf(UserMemberCount(user1.id, 2L))
 
-        val hardService = serviceWith(MatchingProperties(capacityMode = CapacityMode.HARD))
+        val hardService = serviceWith(matchingProperties.copy(capacityMode = CapacityMode.HARD))
         val result = hardService.findCandidatesForProject(project.id, 0.0, 20)
 
         assertThat(result).isEmpty()

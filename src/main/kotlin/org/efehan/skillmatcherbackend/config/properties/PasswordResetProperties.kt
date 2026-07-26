@@ -4,5 +4,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "password-reset")
 data class PasswordResetProperties(
-    val tokenExpirationHours: Long = 24,
+    val tokenExpirationHours: Long,
 )

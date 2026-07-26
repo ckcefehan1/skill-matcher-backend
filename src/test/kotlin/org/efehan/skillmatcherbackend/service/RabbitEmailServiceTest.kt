@@ -22,7 +22,20 @@ class RabbitEmailServiceTest {
     @MockK(relaxed = true)
     private lateinit var rabbitTemplate: RabbitTemplate
 
-    private val properties = RabbitMQProperties()
+    private val properties =
+        RabbitMQProperties(
+            exchange = "skill-matcher.events",
+            mailQueue = "mail.send",
+            mailDlq = "mail.send.dlq",
+            mailRoutingKey = "mail.send",
+            retry =
+                RabbitMQProperties.Retry(
+                    maxRetries = 2,
+                    initialIntervalMs = 1000,
+                    multiplier = 2.0,
+                    maxIntervalMs = 5000,
+                ),
+        )
     private lateinit var rabbitEmailService: RabbitEmailService
 
     @BeforeEach
