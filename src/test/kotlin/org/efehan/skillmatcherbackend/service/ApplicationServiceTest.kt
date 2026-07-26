@@ -374,7 +374,8 @@ class ApplicationServiceTest {
     fun `acceptInvitation sets ACCEPTED, adds member via owner and notifies PM`() {
         val application = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED)
         every { applicationRepo.findByIdOrNull(application.id) } returns application
-        every { memberService.addMember(pm, project.id, employer.id) } returns ProjectMemberBuilder().build(project = project, user = employer)
+        every { memberService.addMember(pm, project.id, employer.id) } returns
+            ProjectMemberBuilder().build(project = project, user = employer)
         every { applicationRepo.save(any()) } returnsArgument 0
 
         val result = service.acceptInvitation(employer, application.id)
