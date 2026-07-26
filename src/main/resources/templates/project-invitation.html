@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Invitation to join <span th:text="${projectName}">Project</span></h1>
+    <p>Hello <span th:text="${firstName}">User</span>,</p>
+    <p>
+        <span th:text="${pmName}">Project Manager</span>
+        has invited you to join the project "<span th:text="${projectName}">Project</span>".
+    </p>
+    <p th:if="${message != null and !message.isEmpty()}">
+        <strong>Message from the project manager:</strong><br/>
+        <span th:text="${message}"></span>
+    </p>
+    <p>Open the Skill Matcher dashboard to accept or decline the invitation.</p>
+</body>
+</html>

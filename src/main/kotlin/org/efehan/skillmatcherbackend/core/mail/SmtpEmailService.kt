@@ -105,6 +105,42 @@ class SmtpEmailService(
         }
     }
 
+    @Async
+    override fun sendProjectInvitationEmail(
+        invitee: UserModel,
+        pm: UserModel,
+        project: ProjectModel,
+        message: String?,
+    ) {
+        try {
+            val htmlContent = templateService.renderProjectInvitation(invitee, pm, project, message)
+            send(invitee.email, "You have been invited to join '${project.name}'", htmlContent)
+        } catch (ex: Exception) {
+            logger.error("Failed to send project-invitation email to={}", invitee.email, ex)
+        }
+    }
+
+    @Async
+    override fun sendProjectInvitationResponseEmail(
+        pm: UserModel,
+        employer: UserModel,
+        project: ProjectModel,
+        accepted: Boolean,
+    ) {
+        try {
+            val htmlContent = templateService.renderProjectInvitationResponse(pm, employer, project, accepted)
+            val subject =
+                if (accepted) {
+                    "Your invitation for '${project.name}' was accepted"
+                } else {
+                    "Your invitation for '${project.name}' was declined"
+                }
+            send(pm.email, subject, htmlContent)
+        } catch (ex: Exception) {
+            logger.error("Failed to send project-invitation-response email to pm={}", pm.email, ex)
+        }
+    }
+
     private fun send(
         to: String,
         subject: String,

@@ -1,6 +1,8 @@
 package org.efehan.skillmatcherbackend.core.projectmember
 
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
+import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
@@ -22,6 +24,7 @@ class ProjectMemberService(
     private val projectRepo: ProjectRepository,
     private val userRepo: UserRepository,
     private val memberRepo: ProjectMemberRepository,
+    private val applicationRepo: ProjectApplicationRepository,
 ) {
     fun addMember(
         owner: UserModel,
@@ -54,6 +57,15 @@ class ProjectMemberService(
                     errorCode = GlobalErrorCode.USER_NOT_FOUND,
                     status = HttpStatus.NOT_FOUND,
                 )
+
+        // nur nach angenommener Bewerbung hinzufügbar
+        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.ACCEPTED) == null) {
+            throw AccessDeniedException(
+                resource = "ProjectMember",
+                errorCode = GlobalErrorCode.PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION,
+                status = HttpStatus.FORBIDDEN,
+            )
+        }
 
         // bereits aktives Mitglied?
         memberRepo.findByProjectAndUser(project, user)?.let { existing ->

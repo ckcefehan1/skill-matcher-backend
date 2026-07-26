@@ -242,6 +242,139 @@ class ApplicationController(
     ): ApplicationDto = service.withdraw(securityUser.user, id).toDTO()
 
     @Operation(
+        summary = "Invite a user to a project",
+        description = "Creates an INVITED application for the given user. Only the project owner (PROJECTMANAGER) can invite.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "201",
+                description = "Invitation created.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = ApplicationDto::class))],
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Not authenticated.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Not the project owner.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Project or user not found.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "Duplicate, open application exists, or already a member.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+        ],
+    )
+    @PostMapping("/api/projects/{projectId}/invitations")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('PROJECTMANAGER')")
+    fun invite(
+        @AuthenticationPrincipal securityUser: SecurityUser,
+        @PathVariable projectId: String,
+        @Valid @RequestBody request: CreateInvitationRequest,
+    ): ApplicationDto =
+        service
+            .invite(
+                pm = securityUser.user,
+                projectId = projectId,
+                userId = request.userId,
+                message = request.message,
+            ).toDTO()
+
+    @Operation(
+        summary = "Accept a project invitation",
+        description =
+            "Accepts an INVITED application, adds the authenticated user as a project member, and notifies the project manager. " +
+                "Only the invited user can accept.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Invitation accepted.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = ApplicationDto::class))],
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Not authenticated.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Not the invited user.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Application not found.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "Already decided or project full.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+        ],
+    )
+    @PostMapping("/api/applications/{id}/accept-invitation")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasRole('EMPLOYER')")
+    fun acceptProjectInvitation(
+        @AuthenticationPrincipal securityUser: SecurityUser,
+        @PathVariable id: String,
+    ): ApplicationDto = service.acceptInvitation(securityUser.user, id).toDTO()
+
+    @Operation(
+        summary = "Decline a project invitation",
+        description = "Declines an INVITED application and notifies the project manager. Only the invited user can decline.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Invitation declined.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = ApplicationDto::class))],
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Not authenticated.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Not the invited user.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Application not found.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "Already decided.",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = GlobalErrorCodeResponse::class))],
+            ),
+        ],
+    )
+    @PostMapping("/api/applications/{id}/decline-invitation")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasRole('EMPLOYER')")
+    fun declineProjectInvitation(
+        @AuthenticationPrincipal securityUser: SecurityUser,
+        @PathVariable id: String,
+    ): ApplicationDto = service.declineInvitation(securityUser.user, id).toDTO()
+
+    @Operation(
         summary = "List my applications",
         description = "Returns all applications submitted by the authenticated user, newest first.",
     )

@@ -10,6 +10,7 @@ import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
+import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -27,6 +28,7 @@ class ApplicationService(
     private val applicationRepo: ProjectApplicationRepository,
     private val projectRepo: ProjectRepository,
     private val memberRepo: ProjectMemberRepository,
+    private val userRepo: UserRepository,
     private val memberService: ProjectMemberService,
     private val emailService: EmailService,
 ) {
@@ -49,7 +51,9 @@ class ApplicationService(
             )
         }
 
-        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null) {
+        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null ||
+            applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.INVITED) != null
+        ) {
             throw DuplicateEntryException(
                 resource = "ProjectApplication",
                 field = "userId",
@@ -84,8 +88,6 @@ class ApplicationService(
         application.status = ApplicationStatus.ACCEPTED
         application.decidedAt = Instant.now()
         application.decidedBy = pm
-
-        memberService.addMember(pm, application.project.id, application.user.id)
 
         emailService.sendApplicationDecidedEmail(
             applicant = application.user,
@@ -124,17 +126,116 @@ class ApplicationService(
         applicationId: String,
     ): ProjectApplicationModel {
         val application = findApplicationOrThrow(applicationId)
-        if (application.user.id != user.id) {
+        ensureIsApplicant(user, application)
+        ensurePending(application)
+
+        application.status = ApplicationStatus.WITHDRAWN
+        application.decidedAt = Instant.now()
+        return applicationRepo.save(application)
+    }
+
+    fun invite(
+        pm: UserModel,
+        projectId: String,
+        userId: String,
+        message: String?,
+    ): ProjectApplicationModel {
+        val project = findProjectOrThrow(projectId)
+        if (project.owner.id != pm.id) {
             throw AccessDeniedException(
                 resource = "ProjectApplication",
                 errorCode = GlobalErrorCode.APPLICATION_ACCESS_DENIED,
                 status = HttpStatus.FORBIDDEN,
             )
         }
-        ensurePending(application)
+        val user =
+            userRepo.findByIdOrNull(userId)
+                ?: throw EntryNotFoundException(
+                    resource = "User",
+                    field = "id",
+                    value = userId,
+                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
+                    status = HttpStatus.NOT_FOUND,
+                )
 
-        application.status = ApplicationStatus.WITHDRAWN
+        val existingMember = memberRepo.findByProjectAndUser(project, user)
+        if (existingMember != null && existingMember.status == ProjectMemberStatus.ACTIVE) {
+            throw DuplicateEntryException(
+                resource = "ProjectApplication",
+                field = "userId",
+                value = user.id,
+                errorCode = GlobalErrorCode.APPLICATION_FOR_MEMBER,
+                status = HttpStatus.CONFLICT,
+                message = "User is already an active member of this project.",
+            )
+        }
+        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null ||
+            applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.INVITED) != null
+        ) {
+            throw DuplicateEntryException(
+                resource = "ProjectApplication",
+                field = "userId",
+                value = user.id,
+                errorCode = GlobalErrorCode.APPLICATION_DUPLICATE,
+                status = HttpStatus.CONFLICT,
+            )
+        }
+
+        val invitation =
+            applicationRepo.save(
+                ProjectApplicationModel(
+                    project = project,
+                    user = user,
+                    status = ApplicationStatus.INVITED,
+                    appliedAt = Instant.now(),
+                    message = message,
+                ),
+            )
+        emailService.sendProjectInvitationEmail(user, pm, project, message)
+        return invitation
+    }
+
+    fun acceptInvitation(
+        user: UserModel,
+        applicationId: String,
+    ): ProjectApplicationModel {
+        val application = findApplicationOrThrow(applicationId)
+        ensureIsApplicant(user, application)
+        ensureInvited(application)
+
+        application.status = ApplicationStatus.ACCEPTED
         application.decidedAt = Instant.now()
+        application.decidedBy = user
+
+        memberService.addMember(application.project.owner, application.project.id, user.id)
+
+        emailService.sendProjectInvitationResponseEmail(
+            pm = application.project.owner,
+            employer = user,
+            project = application.project,
+            accepted = true,
+        )
+        return applicationRepo.save(application)
+    }
+
+    fun declineInvitation(
+        user: UserModel,
+        applicationId: String,
+    ): ProjectApplicationModel {
+        val application = findApplicationOrThrow(applicationId)
+        ensureIsApplicant(user, application)
+        ensureInvited(application)
+
+        application.status = ApplicationStatus.DECLINED
+        application.decidedAt = Instant.now()
+        application.decidedBy = user
+
+        emailService.sendProjectInvitationResponseEmail(
+            pm = application.project.owner,
+            employer = user,
+            project = application.project,
+            accepted = false,
+        )
         return applicationRepo.save(application)
     }
 
@@ -207,6 +308,32 @@ class ApplicationService(
                 errorCode = GlobalErrorCode.APPLICATION_ALREADY_DECIDED,
                 status = HttpStatus.CONFLICT,
                 message = "Application has already been decided (status=${application.status.name}).",
+            )
+        }
+    }
+
+    private fun ensureInvited(application: ProjectApplicationModel) {
+        if (application.status != ApplicationStatus.INVITED) {
+            throw DuplicateEntryException(
+                resource = "ProjectApplication",
+                field = "status",
+                value = application.status.name,
+                errorCode = GlobalErrorCode.APPLICATION_ALREADY_DECIDED,
+                status = HttpStatus.CONFLICT,
+                message = "Invitation has already been decided (status=${application.status.name}).",
+            )
+        }
+    }
+
+    private fun ensureIsApplicant(
+        user: UserModel,
+        application: ProjectApplicationModel,
+    ) {
+        if (application.user.id != user.id) {
+            throw AccessDeniedException(
+                resource = "ProjectApplication",
+                errorCode = GlobalErrorCode.APPLICATION_ACCESS_DENIED,
+                status = HttpStatus.FORBIDDEN,
             )
         }
     }
