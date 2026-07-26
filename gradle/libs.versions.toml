@@ -12,6 +12,7 @@ mockk = "1.14.9"
 assertj = "3.27.7"
 awaitility = "4.3.0"
 springdoc = "3.0.1"
+bucket4j = "8.14.0"
 
 [libraries]
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
@@ -38,6 +39,7 @@ spring-boot-starter-liquibase-test = { module = "org.springframework.boot:spring
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 spring-boot-starter-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "spring-security"}
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+bucket4j-core = { module = "com.bucket4j:bucket4j_jdk17-core", version.ref = "bucket4j" }
 
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }

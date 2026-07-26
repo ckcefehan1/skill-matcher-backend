@@ -71,8 +71,10 @@ enum class GlobalErrorCode(
     // User state
     USER_INVALID_OPERATION("Current user state does not allow this operation."),
     ACCOUNT_DISABLED("Account is disabled."),
+    ACCOUNT_LOCKED("Account is temporarily locked due to failed login attempts."),
     MUST_CHANGE_PASSWORD("Password change required."),
 
     // General
+    RATE_LIMIT_EXCEEDED("Too many requests. Please try again later."),
     INTERNAL_SERVER_ERROR("An unexpected error occurred."),
 }

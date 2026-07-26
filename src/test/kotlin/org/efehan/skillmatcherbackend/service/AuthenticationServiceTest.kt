@@ -19,7 +19,7 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
-import org.efehan.skillmatcherbackend.shared.exceptions.AccountDisabledException
+import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.DisabledException
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Clock
 import java.time.Instant
@@ -162,6 +163,8 @@ class AuthenticationServiceTest {
     fun `login throws InvalidCredentialsException when user not found`() {
         // given
         every { userRepository.findByEmail(EMAIL) } returns null
+        every { passwordEncoder.encode(any()) } returns "dummy-hash"
+        every { passwordEncoder.matches(any(), any()) } returns false
 
         // then
         assertThatThrownBy {
@@ -173,12 +176,14 @@ class AuthenticationServiceTest {
                 assertThat(e.status).isEqualTo(org.springframework.http.HttpStatus.UNAUTHORIZED)
             })
 
+        // timing equalization: unknown users still cost one bcrypt comparison
+        verify(exactly = 1) { passwordEncoder.matches(PASSWORD, any()) }
         verify(exactly = 0) { authenticationManager.authenticate(any()) }
         verify(exactly = 0) { jwtService.generateAccessToken(any()) }
     }
 
     @Test
-    fun `login throws AccountDisabledException when user is disabled`() {
+    fun `login propagates DisabledException from authenticationManager`() {
         // given
         val user =
             UserBuilder().build(
@@ -190,18 +195,148 @@ class AuthenticationServiceTest {
             )
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } throws DisabledException("User is disabled")
 
         // then
         assertThatThrownBy {
             authenticationService.login(EMAIL, PASSWORD)
-        }.isInstanceOf(AccountDisabledException::class.java)
+        }.isInstanceOf(DisabledException::class.java)
+
+        verify(exactly = 0) { jwtService.generateAccessToken(any()) }
+    }
+
+    @Test
+    fun `login throws AccountLockedException when account is locked`() {
+        // given
+        val user =
+            UserBuilder().build(
+                email = EMAIL,
+                firstName = "Test",
+                lastName = "User",
+                role = RoleModel("ADMIN", null),
+            )
+        user.lockedUntil = FIXED_INSTANT.plus(10, ChronoUnit.MINUTES)
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+
+        // then
+        assertThatThrownBy {
+            authenticationService.login(EMAIL, PASSWORD)
+        }.isInstanceOf(AccountLockedException::class.java)
             .satisfies({ ex ->
-                val e = ex as AccountDisabledException
-                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.ACCOUNT_DISABLED)
+                val e = ex as AccountLockedException
+                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.ACCOUNT_LOCKED)
+                assertThat(e.status).isEqualTo(org.springframework.http.HttpStatus.LOCKED)
             })
 
         verify(exactly = 0) { authenticationManager.authenticate(any()) }
         verify(exactly = 0) { jwtService.generateAccessToken(any()) }
+    }
+
+    @Test
+    fun `login increments failed attempts on bad credentials`() {
+        // given
+        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
+        every { userRepository.save(any()) } returnsArgument 0
+
+        // when
+        assertThatThrownBy {
+            authenticationService.login(EMAIL, PASSWORD)
+        }.isInstanceOf(BadCredentialsException::class.java)
+
+        // then
+        assertThat(user.failedLoginAttempts).isEqualTo(1)
+        assertThat(user.lockedUntil).isNull()
+        verify(exactly = 1) { userRepository.save(user) }
+    }
+
+    @Test
+    fun `login locks account after max failed attempts`() {
+        // given
+        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+        user.failedLoginAttempts = 4
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
+        every { userRepository.save(any()) } returnsArgument 0
+
+        // when
+        assertThatThrownBy {
+            authenticationService.login(EMAIL, PASSWORD)
+        }.isInstanceOf(BadCredentialsException::class.java)
+
+        // then
+        assertThat(user.lockedUntil).isEqualTo(FIXED_INSTANT.plus(15, ChronoUnit.MINUTES))
+        assertThat(user.failedLoginAttempts).isEqualTo(0)
+        verify(exactly = 1) { userRepository.save(user) }
+    }
+
+    @Test
+    fun `login resets failed attempts on success`() {
+        // given
+        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+        user.failedLoginAttempts = 3
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } returns mockk()
+        every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
+        every { jwtService.generateOpaqueRefreshToken() } returns REFRESH_TOKEN
+        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
+        every { userRepository.save(any()) } returnsArgument 0
+        every { refreshTokenRepository.save(any()) } returnsArgument 0
+
+        // when
+        authenticationService.login(EMAIL, PASSWORD)
+
+        // then
+        assertThat(user.failedLoginAttempts).isEqualTo(0)
+        assertThat(user.lockedUntil).isNull()
+        verify(exactly = 1) { userRepository.save(user) }
+    }
+
+    @Test
+    fun `login does not save user when no prior failed attempts`() {
+        // given
+        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } returns mockk()
+        every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
+        every { jwtService.generateOpaqueRefreshToken() } returns REFRESH_TOKEN
+        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
+        every { refreshTokenRepository.save(any()) } returnsArgument 0
+
+        // when
+        authenticationService.login(EMAIL, PASSWORD)
+
+        // then
+        verify(exactly = 0) { userRepository.save(any()) }
+    }
+
+    @Test
+    fun `login allows attempt again after lock expired`() {
+        // given
+        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+        user.lockedUntil = FIXED_INSTANT.minus(1, ChronoUnit.MINUTES)
+
+        every { userRepository.findByEmail(EMAIL) } returns user
+        every { authenticationManager.authenticate(any()) } returns mockk()
+        every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
+        every { jwtService.generateOpaqueRefreshToken() } returns REFRESH_TOKEN
+        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
+        every { userRepository.save(any()) } returnsArgument 0
+        every { refreshTokenRepository.save(any()) } returnsArgument 0
+
+        // when
+        val result = authenticationService.login(EMAIL, PASSWORD)
+
+        // then
+        assertThat(result.accessToken).isEqualTo(ACCESS_TOKEN)
+        assertThat(user.lockedUntil).isNull()
+        verify(exactly = 1) { userRepository.save(user) }
     }
 
     @Test
@@ -211,6 +346,7 @@ class AuthenticationServiceTest {
 
         every { userRepository.findByEmail(EMAIL) } returns user
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
+        every { userRepository.save(any()) } returnsArgument 0
 
         // then
         assertThatThrownBy {

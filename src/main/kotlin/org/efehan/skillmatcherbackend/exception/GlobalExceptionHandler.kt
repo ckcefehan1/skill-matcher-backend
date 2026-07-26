@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.exception
 
 import jakarta.servlet.http.HttpServletRequest
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountDisabledException
+import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.DisabledException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -101,6 +103,32 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
         )
         val body = GlobalErrorCodeResponse(errorCode = exception.errorCode)
         return ResponseEntity(body, exception.status)
+    }
+
+    @ExceptionHandler(AccountLockedException::class)
+    fun handleAccountLocked(
+        exception: AccountLockedException,
+        request: HttpServletRequest,
+    ): ResponseEntity<GlobalErrorCodeResponse> {
+        logger.error(
+            "AccountLockedException [${request.method} ${request.requestURI}]",
+            exception,
+        )
+        val body = GlobalErrorCodeResponse(errorCode = exception.errorCode)
+        return ResponseEntity(body, exception.status)
+    }
+
+    @ExceptionHandler(DisabledException::class)
+    fun handleDisabled(
+        exception: DisabledException,
+        request: HttpServletRequest,
+    ): ResponseEntity<GlobalErrorCodeResponse> {
+        logger.error(
+            "DisabledException [${request.method} ${request.requestURI}]",
+            exception,
+        )
+        val body = GlobalErrorCodeResponse(errorCode = GlobalErrorCode.ACCOUNT_DISABLED)
+        return ResponseEntity(body, HttpStatus.FORBIDDEN)
     }
 
     @ExceptionHandler(BadCredentialsException::class)

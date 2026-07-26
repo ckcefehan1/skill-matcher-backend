@@ -72,6 +72,7 @@ class GlobalErrorCodeTest {
     // User state
     val expectedUserInvalidOperationErrorCode = "USER_INVALID_OPERATION"
     val expectedAccountDisabledErrorCode = "ACCOUNT_DISABLED"
+    val expectedAccountLockedErrorCode = "ACCOUNT_LOCKED"
     val expectedMustChangePasswordErrorCode = "MUST_CHANGE_PASSWORD"
 
     // Chat
@@ -79,6 +80,7 @@ class GlobalErrorCodeTest {
     val expectedConversationAccessDeniedErrorCode = "CONVERSATION_ACCESS_DENIED"
 
     // General
+    val expectedRateLimitExceededErrorCode = "RATE_LIMIT_EXCEEDED"
     val expectedInternalServerErrorCode = "INTERNAL_SERVER_ERROR"
 
     @Test
@@ -148,6 +150,7 @@ class GlobalErrorCodeTest {
         // User state
         assertThat(expectedUserInvalidOperationErrorCode).isEqualTo(GlobalErrorCode.USER_INVALID_OPERATION.name)
         assertThat(expectedAccountDisabledErrorCode).isEqualTo(GlobalErrorCode.ACCOUNT_DISABLED.name)
+        assertThat(expectedAccountLockedErrorCode).isEqualTo(GlobalErrorCode.ACCOUNT_LOCKED.name)
         assertThat(expectedMustChangePasswordErrorCode).isEqualTo(GlobalErrorCode.MUST_CHANGE_PASSWORD.name)
 
         // Chat
@@ -155,9 +158,10 @@ class GlobalErrorCodeTest {
         assertThat(expectedConversationAccessDeniedErrorCode).isEqualTo(GlobalErrorCode.CONVERSATION_ACCESS_DENIED.name)
 
         // General
+        assertThat(expectedRateLimitExceededErrorCode).isEqualTo(GlobalErrorCode.RATE_LIMIT_EXCEEDED.name)
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(47)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(49)
     }
 
     @Test
