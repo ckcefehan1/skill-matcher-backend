@@ -2,7 +2,7 @@
 
 Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 
-## 1. Security-Basis
+## 1. Security-Basis ✅ umgesetzt
 
 - **Rate Limiting** auf Auth-Endpoints (Login, Passwort-Reset, Invitations): Bucket4j-Filter, in-memory pro IP. Redis-Buckets erst bei Multi-Instanz.
 - **Login-Lockout**: Failed-Attempt-Counter am `UserModel`, Account temporär sperren nach N Fehlversuchen.
@@ -22,7 +22,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - Publish erst nach DB-Commit: `@TransactionalEventListener(AFTER_COMMIT)`.
 - Topic-Exchange von Anfang an. Spätere Konsumenten: In-App-Notifications, Matching-Neuberechnung, Audit-Events.
 
-## 4. Caching
+## 4. Caching ✅ umgesetzt
 
 - Spring Cache + Caffeine (in-memory, eine Instanz → kein Netzwerk-Hop, keine Infra).
 - `@Cacheable` auf Skill-Katalog und Matching-Queries, `@CacheEvict` auf Mutations.

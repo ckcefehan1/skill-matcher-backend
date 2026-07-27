@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.skill
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.config.properties.SkillGraphProperties
 import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.SkillModel
@@ -9,6 +10,7 @@ import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
 import org.efehan.skillmatcherbackend.persistence.SkillRelationType
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -72,6 +74,10 @@ class SkillGraphService(
      * Existing CURATED relations are preserved (LEARNED is skipped for pairs that already have CURATED).
      */
     @Scheduled(cron = "0 0 3 * * *")
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     @Transactional
     fun deriveCoOccurrence() {
         if (!properties.derivationEnabled) return

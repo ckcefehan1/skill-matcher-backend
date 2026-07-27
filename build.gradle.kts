@@ -34,6 +34,8 @@ dependencies {
     implementation(libs.spring.boot.starter.thymeleaf)
     implementation(libs.spring.boot.starter.websocket)
     implementation(libs.spring.boot.starter.amqp)
+    implementation(libs.spring.boot.starter.cache)
+    implementation(libs.caffeine)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.jjwt.api)
     implementation(libs.jjwt.impl)

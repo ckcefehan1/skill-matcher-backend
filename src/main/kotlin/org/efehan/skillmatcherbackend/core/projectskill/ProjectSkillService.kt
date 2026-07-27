@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.projectskill
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillModel
@@ -10,6 +11,7 @@ import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -22,6 +24,10 @@ class ProjectSkillService(
     private val skillRepo: SkillRepository,
     private val projectSkillRepo: ProjectSkillRepository,
 ) {
+    @CacheEvict(
+        cacheNames = [CacheConfig.SKILL_CATALOG, CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun addOrUpdateSkill(
         user: UserModel,
         projectId: String,
@@ -103,6 +109,10 @@ class ProjectSkillService(
         return projectSkillRepo.findByProject(project)
     }
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun deleteSkill(
         user: UserModel,
         projectId: String,

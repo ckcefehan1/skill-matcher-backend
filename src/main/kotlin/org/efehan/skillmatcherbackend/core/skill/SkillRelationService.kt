@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.skill
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
@@ -8,6 +9,7 @@ import org.efehan.skillmatcherbackend.persistence.SkillRelationType
 import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -19,6 +21,10 @@ class SkillRelationService(
     private val skillRelationRepo: SkillRelationRepository,
     private val skillRepo: SkillRepository,
 ) {
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun create(
         fromSkillId: String,
         toSkillId: String,
@@ -81,6 +87,10 @@ class SkillRelationService(
         return skillRelationRepo.findBySkillIn(listOf(skill))
     }
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun delete(id: String) {
         val relation =
             skillRelationRepo.findByIdOrNull(id)
