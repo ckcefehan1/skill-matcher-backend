@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.availability
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.UserAvailabilityModel
 import org.efehan.skillmatcherbackend.persistence.UserAvailabilityRepository
@@ -7,6 +8,7 @@ import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -18,6 +20,10 @@ import java.time.LocalDate
 class UserAvailabilityService(
     private val availabilityRepo: UserAvailabilityRepository,
 ) {
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun create(
         user: UserModel,
         availableFrom: LocalDate,
@@ -53,6 +59,10 @@ class UserAvailabilityService(
             .findByUser(user)
             .sortedBy { it.availableFrom }
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun update(
         user: UserModel,
         id: String,
@@ -98,6 +108,10 @@ class UserAvailabilityService(
         return availabilityRepo.save(entry)
     }
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun delete(
         user: UserModel,
         id: String,

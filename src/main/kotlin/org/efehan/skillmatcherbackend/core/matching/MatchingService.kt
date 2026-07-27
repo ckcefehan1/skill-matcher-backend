@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.matching
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.config.properties.CapacityMode
 import org.efehan.skillmatcherbackend.config.properties.MatchingProperties
 import org.efehan.skillmatcherbackend.core.skill.SkillGraphService
@@ -22,6 +23,7 @@ import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -66,6 +68,12 @@ class MatchingService(
         const val UNDERUTILIZATION_PENALTY = 0.2
     }
 
+    // ponytail: application/member mutations (hasApplied bonus, capacity factor) evict nicht,
+    // Ergebnisse dort bis zu cache.matching-ttl (60s) stale — bei Bedarf dort auch @CacheEvict
+    @Cacheable(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES],
+        key = "{#projectId, #minScore, #limit, #tier}",
+    )
     fun findCandidatesForProject(
         projectId: String,
         minScore: Double,
@@ -132,6 +140,10 @@ class MatchingService(
             .toList()
     }
 
+    @Cacheable(
+        cacheNames = [CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        key = "{#user.id, #minScore, #limit, #tier}",
+    )
     fun findProjectsForUser(
         user: UserModel,
         minScore: Double,

@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.skill
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.SkillModel
 import org.efehan.skillmatcherbackend.persistence.SkillRepository
@@ -8,6 +9,8 @@ import org.efehan.skillmatcherbackend.persistence.UserSkillModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
@@ -21,6 +24,10 @@ class UserSkillService(
     private val skillRepo: SkillRepository,
     private val userSkillRepo: UserSkillRepository,
 ) {
+    @CacheEvict(
+        cacheNames = [CacheConfig.SKILL_CATALOG, CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun addOrUpdateSkill(
         user: UserModel,
         name: String,
@@ -47,10 +54,15 @@ class UserSkillService(
         return userSkill to created
     }
 
+    @Cacheable(cacheNames = [CacheConfig.SKILL_CATALOG])
     fun getAllSkills(pageable: Pageable): Page<SkillModel> = skillRepo.findAll(pageable)
 
     fun getUserSkills(user: UserModel): List<UserSkillModel> = userSkillRepo.findByUser(user)
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun deleteSkill(
         user: UserModel,
         userSkillId: String,

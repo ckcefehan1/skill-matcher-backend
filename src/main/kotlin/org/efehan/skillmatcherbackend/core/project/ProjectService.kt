@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.project
 
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
@@ -9,6 +10,7 @@ import org.efehan.skillmatcherbackend.persistence.ProjectStatus
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
@@ -56,6 +58,10 @@ class ProjectService(
 
     fun getAllProjects(pageable: Pageable): Page<ProjectModel> = projectRepo.findAll(pageable)
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun updateProject(
         user: UserModel,
         projectId: String,
@@ -95,6 +101,10 @@ class ProjectService(
         return projectRepo.save(project)
     }
 
+    @CacheEvict(
+        cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
+        allEntries = true,
+    )
     fun deleteProject(
         user: UserModel,
         projectId: String,
