@@ -7,6 +7,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import jakarta.mail.internet.MimeMessage
 import org.efehan.skillmatcherbackend.config.properties.MailProperties
+import org.efehan.skillmatcherbackend.core.mail.MailSender
 import org.efehan.skillmatcherbackend.core.mail.SmtpEmailService
 import org.efehan.skillmatcherbackend.core.mail.TemplateService
 import org.efehan.skillmatcherbackend.persistence.RoleModel
@@ -36,7 +37,7 @@ class MailServiceTest {
     fun setUp() {
         every { mailProperties.from } returns "noreply@skill-matcher.local"
         every { mailProperties.baseUrl } returns "http://localhost:4200"
-        smtpEmailService = SmtpEmailService(javaMailSender, templateService, mailProperties)
+        smtpEmailService = SmtpEmailService(MailSender(javaMailSender, templateService, mailProperties))
     }
 
     private fun buildTestUser(): UserModel {

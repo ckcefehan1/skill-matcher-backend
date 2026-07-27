@@ -30,7 +30,13 @@ class SkillGraphServiceTest {
     @MockK
     private lateinit var userSkillRepo: UserSkillRepository
 
-    private val properties = SkillGraphProperties()
+    private val properties =
+        SkillGraphProperties(
+            enabled = true,
+            minCoOccurrence = 5,
+            derivationEnabled = true,
+            minTransferPenalty = 0.5,
+        )
 
     @InjectMockKs
     private lateinit var service: SkillGraphService
@@ -113,7 +119,12 @@ class SkillGraphServiceTest {
             SkillGraphService(
                 skillRelationRepo,
                 userSkillRepo,
-                SkillGraphProperties(derivationEnabled = false),
+                SkillGraphProperties(
+                    enabled = true,
+                    minCoOccurrence = 5,
+                    derivationEnabled = false,
+                    minTransferPenalty = 0.5,
+                ),
             )
 
         disabledService.deriveCoOccurrence()

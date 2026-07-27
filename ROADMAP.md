@@ -15,7 +15,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - Enabler für alle weiteren Bausteine (RabbitMQ, Redis = jeweils wenige Zeilen YAML).
 - DB-Backups: pg_dump-Cronjob. Einziger Schutz gegen echten Datenverlust.
 
-## 3. RabbitMQ für Mailversand
+## 3. RabbitMQ für Mailversand ✅ umgesetzt
 
 - Event statt Sync-Call: `project.invitation.created` etc. → Queue → Mail-Consumer.
 - Retry mit Backoff, danach DLQ. Consumer idempotent bauen (at-least-once = Duplikate möglich).
