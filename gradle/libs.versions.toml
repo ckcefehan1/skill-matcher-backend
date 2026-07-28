@@ -14,6 +14,8 @@ awaitility = "4.3.0"
 springdoc = "3.0.1"
 bucket4j = "8.14.0"
 caffeine = "3.2.3"
+logstash-logback = "9.0"
+sentry = "8.50.1"
 
 [libraries]
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
@@ -44,6 +46,10 @@ spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-bo
 spring-boot-starter-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "spring-security"}
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 bucket4j-core = { module = "com.bucket4j:bucket4j_jdk17-core", version.ref = "bucket4j" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash-logback" }
+sentry-spring-boot-starter = { module = "io.sentry:sentry-spring-boot-4-starter", version.ref = "sentry" }
 
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }

@@ -60,6 +60,9 @@ class SecurityConfig(
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/ws/**",
+                        // ponytail: prometheus scrape is unauthenticated, restrict to infra network or add auth
+                        "/actuator/health/**",
+                        "/actuator/prometheus",
                     ).permitAll()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.anyRequest().authenticated()
