@@ -45,10 +45,21 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - Auth auf `/actuator/prometheus`: aktuell unauthenticated (ponytail-Kommentar in `SecurityConfig`) — gehört zu Punkt 7.
 - Alerting (Alertmanager, Regeln): nicht angefasst.
 
-## 6. Token-Härtung (größerer Umbau, eigene Session)
+## 6. Token-Härtung ✅ umgesetzt
 
-- **JWT aus localStorage in httpOnly-Cookie** + CSRF-Token. Größte echte XSS-Verbesserung, kostet Frontend-Umbau.
-- **Refresh-Token-Rotation** mit Reuse-Detection: Token-Familie invalidieren bei Wiederverwendung = Diebstahl-Erkennung.
+**Gemacht:**
+
+- **httpOnly-Cookies**: Access-Token (`access_token`, path=/, 15min) und Refresh-Token (`refresh_token`, path=/api/auth, 7d) als httpOnly + SameSite=Strict Cookies statt localStorage. `AuthCookieService`, `CookieProperties` (`cookie.secure`, dev false). `AuthResponse` enthält keine Tokens mehr.
+- **CSRF**: Security-7-Bordmittel `csrf.spa()` (= `CookieCsrfTokenRepository.withHttpOnlyFalse()` + SPA-Request-Handler, akzeptiert rohen Cookie-Wert im `X-XSRF-TOKEN`-Header, emittiert Cookie auch auf GETs). `GET /api/auth/csrf` als Bootstrap. `/ws/**` exempt (STOMP kann keinen Header). `CsrfAuthenticationStrategy` deaktiviert — wiped sonst das XSRF-Cookie bei jeder Filter-Auth (Session-Fixation-Schutz, bei STATELESS sinnlos). CORS `allowCredentials=true`.
+- **Refresh-Rotation bei jedem Gebrauch** mit Reuse-Detection: `family_id` auf `refresh_tokens` (v0.23), wiederverwendeter rotierter Token → gesamte Family invalidiert (REQUIRES_NEW-TX, sonst rollbackt die 401 die Revocation). Strikte Variante ohne Grace-Window (Best Practice nach OAuth 2.0 BCP; ponytail-Kommentar im Code). `findByTokenHash` hält pessimistisches Write-Lock — parallele Refreshes desselben Tokens serialisieren, der Verlierer läuft in die Reuse-Detection.
+- **SameSite=Strict + CSRF-Token bewusst doppelt**: Strict allein würde CSRF schon verhindern, das Token bleibt als Defense-in-Depth (und schützt, sobald ein Browser SameSite-Bugs hat oder der Cookie-Scope mal gelockert wird).
+- **Frontend**: auth-store ohne Tokens (nur `user`, persist version bump), axios `withCredentials` + XSRF-Header aus Cookie, 401→Refresh (leerer Body)→Retry, Guards prüfen `user`. Orval-Client regeneriert. `bootstrapCsrf()` beim App-Start.
+- `JwtAuthenticationFilter`: Cookie zuerst, Bearer-Header als Fallback (Swagger/Tests/STOMP).
+
+**Nicht gemacht (offen):**
+
+- WebSocket-Auth per Cookie/Ticket: Frontend nutzt noch kein STOMP. Bei Adoption prüfen — STOMP-CONNECT kann keine Browser-Cookies setzen, aktuell läuft es über Bearer im Header (Frontend hat keinen Zugriff mehr auf Token → Ticket-Endpoint nötig).
+- ~~Bekannter Tradeoff: zwei Tabs, die exakt gleichzeitig refreshen, loggen sich gegenseitig aus~~ → gelöst via Web Locks (`navigator.locks.request('auth-refresh')` im axios-Refresh-Pfad): Cross-Tab-Single-Flight, zweiter Tab sendet frisches Cookie statt stalem Token.
 
 ## 7. Weitere Security
 
@@ -88,3 +99,4 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 | Circuit Breaker (Resilience4j) | Externe HTTP-Calls (z.B. HaveIBeenPwned, KI-Matching) |
 | 2FA | Nach Token-Härtung |
 | Kubernetes | Wenn Compose an Grenzen stößt |
+| WebSocket-Auth per Ticket-Endpoint | Sobald Frontend STOMP nutzt (JS sieht httpOnly-Cookie nicht) |

@@ -12,11 +12,14 @@ data class LoginRequest(
 )
 
 data class AuthResponse(
-    val accessToken: String,
-    val refreshToken: String,
-    val tokenType: String = "Bearer",
     val expiresIn: Long = 900000, // 15 min
     val user: AuthUserResponse,
+)
+
+data class AuthTokens(
+    val accessToken: String,
+    val refreshToken: String,
+    val response: AuthResponse,
 )
 
 data class AuthUserResponse(
@@ -25,10 +28,6 @@ data class AuthUserResponse(
     val firstName: String?,
     val lastName: String?,
     val role: String,
-)
-
-data class RefreshTokenRequest(
-    val refreshToken: String,
 )
 
 data class ChangePasswordRequest(

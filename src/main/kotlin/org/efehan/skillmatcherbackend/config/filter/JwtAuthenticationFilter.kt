@@ -3,6 +3,7 @@ package org.efehan.skillmatcherbackend.config.filter
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.efehan.skillmatcherbackend.config.properties.CookieProperties
 import org.efehan.skillmatcherbackend.core.auth.CustomUserDetailsService
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
@@ -16,13 +17,14 @@ import org.springframework.web.filter.OncePerRequestFilter
 class JwtAuthenticationFilter(
     private val jwtService: JwtService,
     private val userDetailsService: CustomUserDetailsService,
+    private val cookieProperties: CookieProperties,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        val token = extractBearerToken(request)
+        val token = extractToken(request)
 
         if (token != null && SecurityContextHolder.getContext().authentication == null) {
             try {
@@ -47,7 +49,13 @@ class JwtAuthenticationFilter(
         filterChain.doFilter(request, response)
     }
 
-    private fun extractBearerToken(request: HttpServletRequest): String? {
+    private fun extractToken(request: HttpServletRequest): String? {
+        request.cookies
+            ?.firstOrNull { it.name == cookieProperties.accessTokenName }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
         val header = request.getHeader("Authorization")
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7).ifBlank { null }

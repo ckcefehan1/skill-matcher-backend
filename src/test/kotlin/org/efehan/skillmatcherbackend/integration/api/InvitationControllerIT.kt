@@ -175,9 +175,8 @@ class InvitationControllerIT : AbstractIntegrationTest() {
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
-                jsonPath("$.accessToken") { isNotEmpty() }
-                jsonPath("$.refreshToken") { isNotEmpty() }
-                jsonPath("$.tokenType") { value("Bearer") }
+                jsonPath("$.accessToken") { doesNotExist() }
+                jsonPath("$.refreshToken") { doesNotExist() }
                 jsonPath("$.user.email") { value("max@firma.de") }
                 jsonPath("$.user.firstName") { value("Max") }
                 jsonPath("$.user.role") { value("EMPLOYER") }

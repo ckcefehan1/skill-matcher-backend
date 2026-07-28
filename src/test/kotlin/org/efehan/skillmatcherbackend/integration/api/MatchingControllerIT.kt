@@ -91,7 +91,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/projects/${project.id}/candidates") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -124,7 +124,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/projects/nonexistent-id/candidates") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_NOT_FOUND") }
@@ -150,7 +150,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/projects/some-id/candidates") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
             }
@@ -216,7 +216,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/projects/${project.id}/candidates?minScore=0.9") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }
@@ -274,7 +274,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/me/projects") {
-                header("Authorization", "Bearer $userToken")
+                withAuth(userToken)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(1) }
@@ -331,7 +331,7 @@ class MatchingControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/matching/me/projects") {
-                header("Authorization", "Bearer $userToken")
+                withAuth(userToken)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }

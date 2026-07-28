@@ -63,7 +63,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(1) }
@@ -115,14 +115,14 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then — alice has one unread message, bob (the sender) has none
         mockMvc
             .get("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$[0].unreadCount") { value(1) }
             }
         mockMvc
             .get("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenBob")
+                withAuth(tokenBob)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$[0].unreadCount") { value(0) }
@@ -148,7 +148,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/chat/conversations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }
@@ -203,7 +203,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/chat/conversations/${conversation.id}/messages") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -254,7 +254,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then — fetch only messages before Message 3
         mockMvc
             .get("/api/chat/conversations/${conversation.id}/messages") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
                 param("before", baseTime.plusSeconds(120).toString())
                 param("limit", "10")
             }.andExpect {
@@ -284,7 +284,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/chat/conversations/nonexistent-id/messages") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("CONVERSATION_NOT_FOUND") }
@@ -332,7 +332,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/chat/conversations/${conversation.id}/messages") {
-                header("Authorization", "Bearer $tokenCharlie")
+                withAuth(tokenCharlie)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("CONVERSATION_ACCESS_DENIED") }
@@ -379,7 +379,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -422,7 +422,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
@@ -451,7 +451,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/chat/conversations") {
-                header("Authorization", "Bearer $tokenAlice")
+                withAuth(tokenAlice)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -478,7 +478,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/chat/conversations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -505,7 +505,7 @@ class ChatControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/chat/conversations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("userId" to "  "))
             }.andExpect {
                 status { isBadRequest() }

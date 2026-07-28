@@ -43,7 +43,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -73,7 +73,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isConflict() }
@@ -101,7 +101,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -129,7 +129,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -157,7 +157,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isForbidden() }
@@ -204,7 +204,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(2) }
@@ -233,7 +233,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(1) }
@@ -259,7 +259,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/admin/users") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
             }
@@ -306,7 +306,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/${user.id}/status") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNoContent() }
@@ -347,7 +347,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/${user.id}/status") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNoContent() }
@@ -377,7 +377,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/nonexistent-id/status") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -405,7 +405,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/some-id/status") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isForbidden() }
@@ -455,7 +455,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/${user.id}/role") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNoContent() }
@@ -485,7 +485,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/nonexistent-id/role") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -523,7 +523,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/${user.id}/role") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -551,7 +551,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/some-id/role") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -579,7 +579,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .patch("/api/admin/users/some-id/role") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isForbidden() }

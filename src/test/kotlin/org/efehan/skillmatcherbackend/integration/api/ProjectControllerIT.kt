@@ -84,7 +84,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -108,7 +108,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -134,7 +134,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectFixtures.buildCreateProjectRequest())
             }.andExpect {
                 status { isForbidden() }
@@ -151,7 +151,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.id") { value(project.id) }
@@ -173,7 +173,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_NOT_FOUND") }
@@ -200,7 +200,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(2) }
@@ -217,7 +217,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(0) }
@@ -244,7 +244,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
@@ -265,7 +265,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/projects/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectFixtures.buildUpdateProjectRequest())
             }.andExpect {
                 status { isNotFound() }
@@ -283,7 +283,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $otherToken")
+                withAuth(otherToken)
                 withBodyRequest(ProjectFixtures.buildUpdateProjectRequest())
             }.andExpect {
                 status { isForbidden() }
@@ -301,7 +301,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $employerToken")
+                withAuth(employerToken)
                 withBodyRequest(ProjectFixtures.buildUpdateProjectRequest())
             }.andExpect {
                 status { isForbidden() }
@@ -317,7 +317,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectFixtures.buildUpdateProjectRequest(name = ""))
             }.andExpect {
                 status { isBadRequest() }
@@ -345,7 +345,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -371,7 +371,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -388,7 +388,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_NOT_FOUND") }
@@ -405,7 +405,7 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $otherToken")
+                withAuth(otherToken)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("PROJECT_ACCESS_DENIED") }
@@ -422,19 +422,20 @@ class ProjectControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}") {
-                header("Authorization", "Bearer $employerToken")
+                withAuth(employerToken)
             }.andExpect {
                 status { isForbidden() }
             }
     }
 
     @Test
-    fun `should return 401 when deleting project not authenticated`() {
+    fun `should return 403 when deleting project not authenticated`() {
+        // CSRF check rejects unauthenticated mutations before authentication
         // when & then
         mockMvc
             .delete("/api/projects/some-id")
             .andExpect {
-                status { isUnauthorized() }
+                status { isForbidden() }
             }
     }
 }

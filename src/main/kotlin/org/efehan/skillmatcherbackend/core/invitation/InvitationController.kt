@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
+import org.efehan.skillmatcherbackend.core.auth.AuthCookieService
 import org.efehan.skillmatcherbackend.core.auth.AuthResponse
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
 import org.springframework.http.HttpStatus
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "Invitation", description = "Invitation endpoints")
 class InvitationController(
     private val invitationService: InvitationService,
+    private val authCookieService: AuthCookieService,
 ) {
     @Operation(
         summary = "Validate invitation token",
@@ -110,7 +113,7 @@ class InvitationController(
         method = "POST",
         description =
             "Accepts an invitation token, sets the user's password and profile (firstName, lastName). " +
-                "Returns access and refresh tokens.",
+                "Sets httpOnly access_token and refresh_token cookies.",
     )
     @ApiResponses(
         value = [
@@ -126,9 +129,6 @@ class InvitationController(
                                 name = "Invitation accepted",
                                 value = """
                                 {
-                                    "accessToken": "eyJhbGciOiJSUzI1NiJ9...",
-                                    "refreshToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                                    "tokenType": "Bearer",
                                     "expiresIn": 900000,
                                     "user": {
                                         "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -194,5 +194,16 @@ class InvitationController(
         @Valid
         @RequestBody
         request: AcceptInvitationRequest,
-    ): AuthResponse = invitationService.acceptInvitation(request.token, request.password, request.firstName, request.lastName)
+        response: HttpServletResponse,
+    ): AuthResponse {
+        val tokens =
+            invitationService.acceptInvitation(
+                request.token,
+                request.password,
+                request.firstName,
+                request.lastName,
+            )
+        authCookieService.addCookies(response, tokens.accessToken, tokens.refreshToken)
+        return tokens.response
+    }
 }

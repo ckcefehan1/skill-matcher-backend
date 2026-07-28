@@ -3,6 +3,7 @@ package org.efehan.skillmatcherbackend.core.invitation
 import org.efehan.skillmatcherbackend.config.properties.InvitationProperties
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.core.auth.AuthResponse
+import org.efehan.skillmatcherbackend.core.auth.AuthTokens
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 @Service
 @Transactional
@@ -92,7 +94,7 @@ class InvitationService(
         newPassword: String,
         firstName: String,
         lastName: String,
-    ): AuthResponse {
+    ): AuthTokens {
         val tokenHash = jwtService.hashToken(rawToken)
         val invitation =
             invitationTokenRepository.findByTokenHash(tokenHash)
@@ -141,15 +143,18 @@ class InvitationService(
                 tokenHash = refreshTokenHash,
                 user = user,
                 expiresAt = refreshTokenExpiration,
+                familyId = UUID.randomUUID().toString(),
             ),
         )
 
-        return AuthResponse(
+        return AuthTokens(
             accessToken = accessToken,
             refreshToken = refreshToken,
-            tokenType = "Bearer",
-            expiresIn = jwtProperties.accessTokenExpiration,
-            user = user.toAuthDTO(),
+            response =
+                AuthResponse(
+                    expiresIn = jwtProperties.accessTokenExpiration,
+                    user = user.toAuthDTO(),
+                ),
         )
     }
 

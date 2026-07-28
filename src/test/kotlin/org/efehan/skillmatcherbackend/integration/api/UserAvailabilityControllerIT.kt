@@ -44,7 +44,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/availability") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -85,7 +85,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/availability") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isConflict() }
@@ -117,7 +117,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/availability") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -158,7 +158,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/me/availability") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -186,7 +186,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/me/availability") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }
@@ -221,7 +221,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/me/availability/${entry.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
@@ -250,7 +250,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/me/availability/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -296,7 +296,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/me/availability/${entry.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isForbidden() }
@@ -336,7 +336,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .put("/api/me/availability/${entry.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -371,7 +371,7 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/me/availability/${entry.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -385,6 +385,6 @@ class UserAvailabilityControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/me/availability")
-            .andExpect { status { isUnauthorized() } }
+            .andExpect { status { isForbidden() } }
     }
 }

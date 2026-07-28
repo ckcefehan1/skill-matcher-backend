@@ -44,7 +44,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -76,7 +76,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
@@ -105,7 +105,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -133,7 +133,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -161,7 +161,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -192,7 +192,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -221,7 +221,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/me/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }
@@ -260,7 +260,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/me/skills") {
-                header("Authorization", "Bearer $token1")
+                withAuth(token1)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(1) }
@@ -289,7 +289,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/me/skills/${userSkill.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -316,7 +316,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/me/skills/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("USER_SKILL_NOT_FOUND") }
@@ -354,7 +354,7 @@ class MySkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/me/skills/${otherUsersSkill.id}") {
-                header("Authorization", "Bearer $token1")
+                withAuth(token1)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("USER_SKILL_ACCESS_DENIED") }
@@ -377,10 +377,11 @@ class MySkillControllerIT : AbstractIntegrationTest() {
                 status { isUnauthorized() }
             }
 
+        // CSRF check rejects unauthenticated mutations before authentication: 403
         mockMvc
             .delete("/api/me/skills/some-id")
             .andExpect {
-                status { isUnauthorized() }
+                status { isForbidden() }
             }
     }
 }

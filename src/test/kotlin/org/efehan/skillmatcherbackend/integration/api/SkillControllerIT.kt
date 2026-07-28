@@ -41,7 +41,7 @@ class SkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(3) }
@@ -69,7 +69,7 @@ class SkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(0) }

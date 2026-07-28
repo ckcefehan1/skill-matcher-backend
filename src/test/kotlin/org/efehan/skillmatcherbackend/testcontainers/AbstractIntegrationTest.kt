@@ -23,6 +23,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.cache.CacheManager
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.MockMvc
@@ -110,5 +111,11 @@ abstract class AbstractIntegrationTest {
     protected fun MockHttpServletRequestDsl.withBodyRequest(body: Any) {
         contentType = MediaType.APPLICATION_JSON
         content = objectMapper.writeValueAsString(body)
+        with(SecurityMockMvcRequestPostProcessors.csrf())
+    }
+
+    protected fun MockHttpServletRequestDsl.withAuth(token: String) {
+        header("Authorization", "Bearer $token")
+        with(SecurityMockMvcRequestPostProcessors.csrf())
     }
 }

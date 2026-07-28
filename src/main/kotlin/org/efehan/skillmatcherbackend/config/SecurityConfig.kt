@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.config
 
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
 import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
+import org.efehan.skillmatcherbackend.config.properties.CorsProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
@@ -29,12 +30,19 @@ import java.time.Clock
 class SecurityConfig(
     @Lazy private val jwtAuthFilter: JwtAuthenticationFilter,
     private val rateLimitingFilter: RateLimitingFilter,
+    private val corsProperties: CorsProperties,
 ) {
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
         http
-            .csrf { it.disable() }
-            .cors { }
+            .csrf { csrf ->
+                csrf.spa()
+                // STOMP handshake has no way to send the X-XSRF-TOKEN header
+                csrf.ignoringRequestMatchers("/ws/**")
+                // CsrfAuthenticationStrategy would wipe the XSRF-TOKEN cookie on every
+                // filter-authenticated request — session fixation defense, meaningless when STATELESS
+                csrf.sessionAuthenticationStrategy { _, _, _ -> }
+            }.cors { }
             .headers { headers ->
                 // HSTS deliberately omitted: dev runs on plain HTTP, enable with TLS
                 headers
@@ -54,6 +62,7 @@ class SecurityConfig(
                     .requestMatchers(
                         "/api/auth/login",
                         "/api/auth/refresh",
+                        "/api/auth/csrf",
                         "/api/auth/invitations/validate",
                         "/api/auth/invitations/accept",
                         "/api/auth/password-reset/**",
@@ -74,9 +83,10 @@ class SecurityConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration =
             CorsConfiguration().apply {
-                allowedOrigins = listOf("http://localhost:5173")
+                allowedOrigins = corsProperties.allowedOrigins
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
+                allowCredentials = true
                 maxAge = 3600
             }
         val source = UrlBasedCorsConfigurationSource()
