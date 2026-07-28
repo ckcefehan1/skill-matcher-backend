@@ -24,6 +24,8 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      # rabbitmq_prometheus, scraped for the DLQ alerts
+      - "15692:15692"
 
   prometheus:
     image: prom/prometheus:v3.5.0
@@ -32,6 +34,7 @@ services:
       - "9090:9090"
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker/prometheus/rules.yml:/etc/prometheus/rules.yml
       - prometheus-data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"

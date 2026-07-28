@@ -30,6 +30,11 @@ data class AuthUserResponse(
     val role: String,
 )
 
+data class WsTicketResponse(
+    val ticket: String,
+    val expiresInSeconds: Long,
+)
+
 data class ChangePasswordRequest(
     @field:NotBlank(message = "oldPassword must not be blank")
     val oldPassword: String,

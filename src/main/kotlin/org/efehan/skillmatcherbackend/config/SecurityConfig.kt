@@ -38,7 +38,7 @@ class SecurityConfig(
             .csrf { csrf ->
                 csrf.spa()
                 // STOMP handshake has no way to send the X-XSRF-TOKEN header
-                csrf.ignoringRequestMatchers("/ws/**")
+                csrf.ignoringRequestMatchers("/ws", "/ws/**")
                 // CsrfAuthenticationStrategy would wipe the XSRF-TOKEN cookie on every
                 // filter-authenticated request — session fixation defense, meaningless when STATELESS
                 csrf.sessionAuthenticationStrategy { _, _, _ -> }
@@ -68,6 +68,7 @@ class SecurityConfig(
                         "/api/auth/password-reset/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
+                        "/ws",
                         "/ws/**",
                         // ponytail: prometheus scrape is unauthenticated, restrict to infra network or add auth
                         "/actuator/health/**",

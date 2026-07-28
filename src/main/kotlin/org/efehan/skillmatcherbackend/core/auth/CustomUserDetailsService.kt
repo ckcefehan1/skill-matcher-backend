@@ -16,4 +16,12 @@ class CustomUserDetailsService(
                 ?: throw UsernameNotFoundException("User not found")
         return SecurityUser(user)
     }
+
+    fun loadUserById(id: String): SecurityUser {
+        val user =
+            userRepository
+                .findById(id)
+                .orElseThrow { UsernameNotFoundException("User not found") }
+        return SecurityUser(user)
+    }
 }

@@ -8,6 +8,8 @@ data class RabbitMQProperties(
     val mailQueue: String,
     val mailDlq: String,
     val mailRoutingKey: String,
+    val chatQueue: String,
+    val chatDlq: String,
     val retry: Retry,
 ) {
     data class Retry(

@@ -10,7 +10,6 @@ import org.efehan.skillmatcherbackend.config.WebSocketPrincipal
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.core.chat.PresenceResponse
 import org.efehan.skillmatcherbackend.core.chat.PresenceService
-import org.efehan.skillmatcherbackend.fixtures.builder.ConversationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -48,8 +47,7 @@ class PresenceServiceTest {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
-        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
-        every { conversationRepo.findByUser(userA) } returns listOf(conversation)
+        every { conversationRepo.findPartnerIds(userA) } returns listOf(userB.id)
         every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
 
         // when
@@ -71,8 +69,7 @@ class PresenceServiceTest {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
-        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
-        every { conversationRepo.findByUser(userA) } returns listOf(conversation)
+        every { conversationRepo.findPartnerIds(userA) } returns listOf(userB.id)
         every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
 
         // when — same user opens a second tab
@@ -88,8 +85,7 @@ class PresenceServiceTest {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
-        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
-        every { conversationRepo.findByUser(userA) } returns listOf(conversation)
+        every { conversationRepo.findPartnerIds(userA) } returns listOf(userB.id)
         every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
         presenceService.onConnected(connectedEvent(userA, "session-1"))
         presenceService.onConnected(connectedEvent(userA, "session-2"))
@@ -109,8 +105,7 @@ class PresenceServiceTest {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
-        val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
-        every { conversationRepo.findByUser(userA) } returns listOf(conversation)
+        every { conversationRepo.findPartnerIds(userA) } returns listOf(userB.id)
         every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
         presenceService.onConnected(connectedEvent(userA, "session-1"))
 
@@ -135,7 +130,7 @@ class PresenceServiceTest {
         presenceService.onDisconnected(disconnectedEvent(null, "session-1"))
 
         // then
-        verify(exactly = 0) { conversationRepo.findByUser(any()) }
+        verify(exactly = 0) { conversationRepo.findPartnerIds(any()) }
         verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
     }
 

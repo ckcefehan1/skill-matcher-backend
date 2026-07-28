@@ -8,8 +8,9 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.core.chat.ChatEvent
+import org.efehan.skillmatcherbackend.core.chat.ChatEventPublisher
 import org.efehan.skillmatcherbackend.core.chat.ChatService
-import org.efehan.skillmatcherbackend.core.chat.ReadReceiptResponse
 import org.efehan.skillmatcherbackend.core.chat.TypingResponse
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ChatMessageBuilder
@@ -43,6 +44,9 @@ class ChatServiceTest {
 
     @MockK
     private lateinit var messagingTemplate: SimpMessagingTemplate
+
+    @MockK(relaxed = true)
+    private lateinit var chatEventPublisher: ChatEventPublisher
 
     @InjectMockKs
     private lateinit var chatService: ChatService
@@ -275,14 +279,14 @@ class ChatServiceTest {
     }
 
     @Test
-    fun `sendMessage saves message and sends to both users via websocket`() {
+    fun `sendMessage saves message and publishes event for both users`() {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
         val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
         every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
         every { messageRepo.save(any()) } returnsArgument 0
-        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
+        val eventSlot = slot<ChatEvent.MessageCreated>()
 
         // when
         val result = chatService.sendMessage(userA, conversation.id, "Hello Bob!")
@@ -293,8 +297,9 @@ class ChatServiceTest {
         assertThat(result.conversation).isEqualTo(conversation)
         assertThat(result.sentAt).isNotNull()
         verify(exactly = 1) { messageRepo.save(any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.id, "/queue/messages", any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.id, "/queue/messages", any()) }
+        verify(exactly = 1) { chatEventPublisher.publish(capture(eventSlot)) }
+        assertThat(eventSlot.captured.recipientId).isEqualTo(userB.id)
+        assertThat(eventSlot.captured.message.senderId).isEqualTo(userA.id)
     }
 
     @Test
@@ -336,21 +341,22 @@ class ChatServiceTest {
     }
 
     @Test
-    fun `sendMessage sends to correct recipient when userTwo sends`() {
+    fun `sendMessage publishes event with correct recipient when userTwo sends`() {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
         val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
         every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
         every { messageRepo.save(any()) } returnsArgument 0
-        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
+        val eventSlot = slot<ChatEvent.MessageCreated>()
 
         // when
         chatService.sendMessage(userB, conversation.id, "Hello Alice!")
 
         // then
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userA.id, "/queue/messages", any()) }
-        verify(exactly = 1) { messagingTemplate.convertAndSendToUser(userB.id, "/queue/messages", any()) }
+        verify(exactly = 1) { chatEventPublisher.publish(capture(eventSlot)) }
+        assertThat(eventSlot.captured.recipientId).isEqualTo(userA.id)
+        assertThat(eventSlot.captured.message.senderId).isEqualTo(userB.id)
     }
 
     @Test
@@ -380,48 +386,44 @@ class ChatServiceTest {
     }
 
     @Test
-    fun `markConversationRead marks messages read and sends receipt to partner`() {
+    fun `markConversationRead marks messages read and publishes receipt for partner`() {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
         val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
         every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
         every { messageRepo.markConversationRead(conversation, userA, any()) } returns 2
-        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
-        val receiptSlot = slot<ReadReceiptResponse>()
+        val eventSlot = slot<ChatEvent.ConversationRead>()
 
         // when
         chatService.markConversationRead(userA, conversation.id)
 
         // then
         verify(exactly = 1) { messageRepo.markConversationRead(conversation, userA, any()) }
-        verify(exactly = 1) {
-            messagingTemplate.convertAndSendToUser(userB.id, "/queue/read-receipts", capture(receiptSlot))
-        }
-        assertThat(receiptSlot.captured.conversationId).isEqualTo(conversation.id)
-        assertThat(receiptSlot.captured.readBy).isEqualTo(userA.id)
-        assertThat(receiptSlot.captured.readAt).isNotNull()
+        verify(exactly = 1) { chatEventPublisher.publish(capture(eventSlot)) }
+        assertThat(eventSlot.captured.partnerId).isEqualTo(userB.id)
+        assertThat(eventSlot.captured.receipt.conversationId).isEqualTo(conversation.id)
+        assertThat(eventSlot.captured.receipt.readBy).isEqualTo(userA.id)
+        assertThat(eventSlot.captured.receipt.readAt).isNotNull()
     }
 
     @Test
-    fun `markConversationRead sends receipt to userOne when userTwo marks read`() {
+    fun `markConversationRead publishes receipt for userOne when userTwo marks read`() {
         // given
         val userA = UserBuilder().build()
         val userB = UserBuilder().build(email = "bob@firma.de", firstName = "Bob", lastName = "Mueller")
         val conversation = ConversationBuilder().build(userOne = userA, userTwo = userB)
         every { conversationRepo.findById(conversation.id) } returns Optional.of(conversation)
         every { messageRepo.markConversationRead(conversation, userB, any()) } returns 1
-        every { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) } returns Unit
-        val receiptSlot = slot<ReadReceiptResponse>()
+        val eventSlot = slot<ChatEvent.ConversationRead>()
 
         // when
         chatService.markConversationRead(userB, conversation.id)
 
         // then
-        verify(exactly = 1) {
-            messagingTemplate.convertAndSendToUser(userA.id, "/queue/read-receipts", capture(receiptSlot))
-        }
-        assertThat(receiptSlot.captured.readBy).isEqualTo(userB.id)
+        verify(exactly = 1) { chatEventPublisher.publish(capture(eventSlot)) }
+        assertThat(eventSlot.captured.partnerId).isEqualTo(userA.id)
+        assertThat(eventSlot.captured.receipt.readBy).isEqualTo(userB.id)
     }
 
     @Test
@@ -437,7 +439,7 @@ class ChatServiceTest {
         chatService.markConversationRead(userA, conversation.id)
 
         // then
-        verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
+        verify(exactly = 0) { chatEventPublisher.publish(any()) }
     }
 
     @Test

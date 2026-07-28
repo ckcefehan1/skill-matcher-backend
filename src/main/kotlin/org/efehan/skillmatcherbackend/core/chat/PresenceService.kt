@@ -64,13 +64,10 @@ class PresenceService(
         user: UserModel,
         online: Boolean,
     ) {
-        conversationRepo.findByUser(user).forEach { conversation ->
-            val partner = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
-            messagingTemplate.convertAndSendToUser(
-                partner.id,
-                "/queue/presence",
-                PresenceResponse(userId = user.id, online = online),
-            )
+        val presence = PresenceResponse(userId = user.id, online = online)
+        // ids only: connect/disconnect fires on every tab open, no need to hydrate conversations
+        conversationRepo.findPartnerIds(user).forEach { partnerId ->
+            messagingTemplate.convertAndSendToUser(partnerId, "/queue/presence", presence)
         }
     }
 }

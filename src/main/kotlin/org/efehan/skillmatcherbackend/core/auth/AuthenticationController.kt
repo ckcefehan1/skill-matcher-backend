@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController
 class AuthenticationController(
     private val authenticationService: AuthenticationService,
     private val authCookieService: AuthCookieService,
+    private val wsTicketService: WsTicketService,
 ) {
     @Operation(
         summary = "Bootstrap CSRF token",
@@ -296,6 +297,48 @@ class AuthenticationController(
         authenticationService.logout(securityUser.user.id)
         authCookieService.clearCookies(response)
     }
+
+    @Operation(
+        summary = "Issue WebSocket ticket",
+        method = "POST",
+        description =
+            "Issues a short-lived, one-time ticket for STOMP CONNECT authentication. " +
+                "The SPA cannot read the httpOnly access_token cookie, so it sends this ticket " +
+                "as the 'ticket' native header when opening the WebSocket connection.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Ticket issued.",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = WsTicketResponse::class),
+                    ),
+                ],
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Not authenticated.",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = GlobalErrorCodeResponse::class),
+                    ),
+                ],
+            ),
+        ],
+    )
+    @PostMapping("/ws-ticket")
+    @ResponseStatus(HttpStatus.OK)
+    fun wsTicket(
+        @AuthenticationPrincipal securityUser: SecurityUser,
+    ): WsTicketResponse =
+        WsTicketResponse(
+            ticket = wsTicketService.issue(securityUser.user.id),
+            expiresInSeconds = wsTicketService.ttlSeconds,
+        )
 
     @Operation(
         summary = "Change password",

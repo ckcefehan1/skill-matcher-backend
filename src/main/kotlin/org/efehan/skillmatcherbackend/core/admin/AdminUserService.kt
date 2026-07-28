@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.admin
 
+import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
@@ -22,6 +23,7 @@ class AdminUserService(
     private val roleRepository: RoleRepository,
     private val invitationService: InvitationService,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val sessionRegistry: WebSocketSessionRegistry,
 ) {
     fun createUser(
         email: String,
@@ -82,6 +84,7 @@ class AdminUserService(
 
         if (!enabled) {
             refreshTokenRepository.revokeAllUserTokens(userId)
+            sessionRegistry.disconnect(userId)
         }
     }
 

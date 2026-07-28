@@ -4,6 +4,7 @@ import org.efehan.skillmatcherbackend.TestcontainersConfiguration
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
+import org.efehan.skillmatcherbackend.persistence.NotificationRepository
 import org.efehan.skillmatcherbackend.persistence.PasswordResetTokenRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
@@ -86,11 +87,15 @@ abstract class AbstractIntegrationTest {
     protected lateinit var conversationRepository: ConversationRepository
 
     @Autowired
+    protected lateinit var notificationRepository: NotificationRepository
+
+    @Autowired
     protected lateinit var cacheManager: CacheManager
 
     @BeforeEach
     fun cleanUp() {
         cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
+        notificationRepository.deleteAll()
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()
         applicationRepository.deleteAll()

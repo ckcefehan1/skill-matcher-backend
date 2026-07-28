@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.auth
 
+import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
@@ -35,6 +36,7 @@ class AuthenticationService(
     private val loginLockoutProperties: LoginLockoutProperties,
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
+    private val sessionRegistry: WebSocketSessionRegistry,
     transactionManager: PlatformTransactionManager,
     private val clock: Clock = Clock.systemUTC(),
 ) {
@@ -176,10 +178,13 @@ class AuthenticationService(
         userRepository.save(user)
 
         refreshTokenRepository.revokeAllUserTokens(user.id)
+        sessionRegistry.disconnect(user.id)
     }
 
     fun logout(userId: String) {
         refreshTokenRepository.revokeAllUserTokens(userId)
+        // a STOMP session authenticated before logout would otherwise keep receiving pushes forever
+        sessionRegistry.disconnect(userId)
     }
 
     private fun registerFailedLogin(

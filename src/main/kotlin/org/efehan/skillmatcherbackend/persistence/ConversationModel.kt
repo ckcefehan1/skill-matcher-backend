@@ -70,4 +70,13 @@ interface ConversationRepository : JpaRepository<ConversationModel, String> {
         userOne: UserModel,
         userTwo: UserModel,
     ): ConversationModel?
+
+    @Query(
+        """
+          SELECT CASE WHEN c.userOne = :user THEN c.userTwo.id ELSE c.userOne.id END
+          FROM ConversationModel c
+          WHERE c.userOne = :user OR c.userTwo = :user
+          """,
+    )
+    fun findPartnerIds(user: UserModel): List<String>
 }

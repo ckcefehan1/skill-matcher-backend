@@ -52,6 +52,7 @@ logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-enc
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
+testcontainers-rabbitmq = { module = "org.testcontainers:rabbitmq" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk"}
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj"}
