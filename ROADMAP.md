@@ -37,14 +37,12 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - Health-Checks: Actuator `/health` inkl. K8s-Probes (`/health/liveness`, `/health/readiness`).
 - Metriken: Micrometer + Prometheus-Registry, Endpoint `/actuator/prometheus`, Metrik-Tag `application=skill-matcher-backend`.
 - Compose: Prometheus (9090) scrapt `host.docker.internal:8080/actuator/prometheus`, Grafana (3000, admin/admin) mit provisionierter Prometheus-Datasource.
-- Sentry Backend: `sentry-spring-boot-4-starter` verdrahtet, noop solange `SENTRY_DSN` leer. Achtung: Jakarta-Starter inkompatibel mit Spring Boot 4, Boot-4-Variante nötig.
 - Tests: `CorrelationIdFilterTest`, `ObservabilityIT` (health/prometheus ohne Auth, Correlation-Echo).
 
 **Nicht gemacht (offen):**
 
 - Grafana-Dashboard: kein provisioniertes JSON — JVM-Micrometer-Dashboard (ID 4701) manuell in Grafana importieren.
-- Sentry Frontend: ausstehend, sinnvoll erst mit echtem DSN.
-- Sentry DSN: kein Account/Projekt angelegt, `SENTRY_DSN` ungesetzt.
+- Error-Tracking (Sentry o.ä.): bewusst rausgelassen — ohne echten DSN nur tote Dependency. Einrichten wenn Account existiert; Achtung: `sentry-spring-boot-4-starter` nötig, Jakarta-Variante inkompatibel mit Spring Boot 4.
 - Auth auf `/actuator/prometheus`: aktuell unauthenticated (ponytail-Kommentar in `SecurityConfig`) — gehört zu Punkt 7.
 - Alerting (Alertmanager, Regeln): nicht angefasst.
 

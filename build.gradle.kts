@@ -44,7 +44,6 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.micrometer.registry.prometheus)
     implementation(libs.logstash.logback.encoder)
-    implementation(libs.sentry.spring.boot.starter)
     developmentOnly(libs.spring.boot.devtools)
     runtimeOnly(libs.postgresql)
     testImplementation(platform(libs.testcontainers.bom))
