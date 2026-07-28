@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.integration.api
 
 import jakarta.servlet.http.Cookie
 import org.assertj.core.api.Assertions.assertThat
+import org.efehan.skillmatcherbackend.core.auth.ChangePasswordRequest
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.LoginRequest
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
@@ -294,14 +295,14 @@ class AuthenticationControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `should return 400 when refresh token not found`() {
+    fun `should return 401 when refresh token not found`() {
         // when & then
         mockMvc
             .post("/api/auth/refresh") {
                 with(csrf())
                 cookie(Cookie("refresh_token", "non-existent-token"))
             }.andExpect {
-                status { isBadRequest() }
+                status { isUnauthorized() }
                 jsonPath("$.errorCode") { value("REFRESH_TOKEN_NOT_FOUND") }
             }
     }
@@ -361,6 +362,38 @@ class AuthenticationControllerIT : AbstractIntegrationTest() {
                 .post("/api/auth/logout") {
                     with(csrf())
                     cookie(Cookie("access_token", accessToken))
+                }.andExpect {
+                    status { isNoContent() }
+                }.andReturn()
+
+        // then
+        val tokens = refreshTokenRepository.findAll()
+        assertThat(tokens).allMatch { it.revoked }
+
+        val cookies = setCookies(result)
+        assertThat(cookies).anyMatch { it.startsWith("access_token=") && it.contains("Max-Age=0") }
+        assertThat(cookies).anyMatch { it.startsWith("refresh_token=") && it.contains("Max-Age=0") }
+    }
+
+    @Test
+    fun `should change password, revoke all refresh tokens and clear cookies`() {
+        // given
+        val password = "Secret-Password1!"
+        val user = createUser(password = password)
+        val accessToken = jwtService.generateAccessToken(user)
+        createRefreshToken(user, rawToken = "token-1")
+
+        // when
+        val result =
+            mockMvc
+                .post("/api/auth/change-password") {
+                    with(csrf())
+                    cookie(Cookie("access_token", accessToken))
+                    contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                    content =
+                        objectMapper.writeValueAsString(
+                            ChangePasswordRequest(oldPassword = password, newPassword = "New-Secret-Password1!"),
+                        )
                 }.andExpect {
                     status { isNoContent() }
                 }.andReturn()

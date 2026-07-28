@@ -21,13 +21,13 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
-import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.DisabledException
@@ -406,7 +406,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    fun `refreshToken throws EntryNotFoundException when token not found`() {
+    fun `refreshToken throws InvalidTokenException when token not found`() {
         // given
         every { jwtService.hashToken("unknown-token") } returns "unknown-token-hash"
         every { refreshTokenRepository.findByTokenHash("unknown-token-hash") } returns null
@@ -414,10 +414,11 @@ class AuthenticationServiceTest {
         // then
         assertThatThrownBy {
             authenticationService.refreshToken("unknown-token")
-        }.isInstanceOf(EntryNotFoundException::class.java)
+        }.isInstanceOf(InvalidTokenException::class.java)
             .satisfies({ ex ->
-                val e = ex as EntryNotFoundException
+                val e = ex as InvalidTokenException
                 assertThat(e.errorCode).isEqualTo(GlobalErrorCode.REFRESH_TOKEN_NOT_FOUND)
+                assertThat(e.status).isEqualTo(HttpStatus.UNAUTHORIZED)
             })
 
         verify(exactly = 0) { jwtService.generateAccessToken(any()) }

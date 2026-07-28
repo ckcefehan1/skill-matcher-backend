@@ -199,8 +199,8 @@ class AuthenticationController(
                 ],
             ),
             ApiResponse(
-                responseCode = "400",
-                description = "Refresh token not found.",
+                responseCode = "401",
+                description = "Refresh token missing, not found, expired or invalid.",
                 content = [
                     Content(
                         mediaType = "application/json",
@@ -211,23 +211,11 @@ class AuthenticationController(
                                 value = """
                                 {
                                     "errorCode": "REFRESH_TOKEN_NOT_FOUND",
-                                    "errorMessage": "RefreshToken with token not found.",
+                                    "errorMessage": "Refresh token not found.",
                                     "fieldErrors": []
                                 }
                                 """,
                             ),
-                        ],
-                    ),
-                ],
-            ),
-            ApiResponse(
-                responseCode = "401",
-                description = "Refresh token expired or invalid.",
-                content = [
-                    Content(
-                        mediaType = "application/json",
-                        schema = Schema(implementation = GlobalErrorCodeResponse::class),
-                        examples = [
                             ExampleObject(
                                 name = "Token expired or invalid",
                                 value = """
@@ -312,7 +300,7 @@ class AuthenticationController(
     @Operation(
         summary = "Change password",
         method = "POST",
-        description = "Changes the password for the authenticated user. Revokes all refresh tokens.",
+        description = "Changes the password for the authenticated user. Revokes all refresh tokens and clears the auth cookies.",
     )
     @ApiResponses(
         value = [
@@ -379,11 +367,15 @@ class AuthenticationController(
         @Valid
         @RequestBody
         request: ChangePasswordRequest,
+        response: HttpServletResponse,
     ) {
         authenticationService.changePassword(
             user = securityUser.user,
             currentPassword = request.oldPassword,
             newPassword = request.newPassword,
         )
+        // service revokes all refresh tokens — drop the cookies too so the
+        // current access token (valid up to 15min) dies with them
+        authCookieService.clearCookies(response)
     }
 }

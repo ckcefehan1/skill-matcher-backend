@@ -8,7 +8,6 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
-import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.http.HttpStatus
@@ -114,13 +113,13 @@ class AuthenticationService(
 
     fun refreshToken(rawToken: String): AuthTokens {
         val tokenHash = jwtService.hashToken(rawToken)
+        // findByTokenHash takes a pessimistic write lock — concurrent refreshes of the
+        // same token serialize here; the loser sees revoked=true and hits reuse detection
         val existingToken =
-            refreshTokenRepository.findByTokenHash(tokenHash) ?: throw EntryNotFoundException(
-                resource = "RefreshToken",
-                field = "token",
-                value = rawToken,
+            refreshTokenRepository.findByTokenHash(tokenHash) ?: throw InvalidTokenException(
+                message = "Refresh token not found",
                 errorCode = GlobalErrorCode.REFRESH_TOKEN_NOT_FOUND,
-                status = HttpStatus.BAD_REQUEST,
+                status = HttpStatus.UNAUTHORIZED,
             )
 
         // ponytail: strict reuse detection, no grace window — add one if parallel-tab logouts become a real problem

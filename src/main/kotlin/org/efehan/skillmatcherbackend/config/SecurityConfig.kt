@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.config
 
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
 import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
+import org.efehan.skillmatcherbackend.config.properties.CorsProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
@@ -29,6 +30,7 @@ import java.time.Clock
 class SecurityConfig(
     @Lazy private val jwtAuthFilter: JwtAuthenticationFilter,
     private val rateLimitingFilter: RateLimitingFilter,
+    private val corsProperties: CorsProperties,
 ) {
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
@@ -81,7 +83,7 @@ class SecurityConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration =
             CorsConfiguration().apply {
-                allowedOrigins = listOf("http://localhost:5173")
+                allowedOrigins = corsProperties.allowedOrigins
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
                 allowCredentials = true
