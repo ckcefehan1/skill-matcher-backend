@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="add-refresh-token-family" author="efehan">
+        <addColumn tableName="refresh_tokens">
+            <column name="family_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <update tableName="refresh_tokens">
+            <column name="family_id" valueComputed="id"/>
+        </update>
+        <addNotNullConstraint tableName="refresh_tokens" columnName="family_id" columnDataType="VARCHAR(36)"/>
+        <createIndex tableName="refresh_tokens" indexName="idx_refresh_tokens_family_id">
+            <column name="family_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

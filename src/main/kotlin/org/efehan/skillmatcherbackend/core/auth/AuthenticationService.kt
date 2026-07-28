@@ -17,13 +17,13 @@ import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
-
-private const val REFRESH_ROTATION_THRESHOLD_DAYS = 2L
+import java.util.UUID
 
 @Service
 @Transactional
@@ -36,14 +36,19 @@ class AuthenticationService(
     private val loginLockoutProperties: LoginLockoutProperties,
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
+    transactionManager: PlatformTransactionManager,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    private val requiresNewTx =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionTemplate.PROPAGATION_REQUIRES_NEW
+        }
     private val dummyBcryptHash: String by lazy { passwordEncoder.encode("dummy-password")!! }
 
     fun login(
         email: String,
         password: String,
-    ): AuthResponse {
+    ): AuthTokens {
         val user = userRepository.findByEmail(email)
         if (user == null) {
             // Equalize timing with a real bcrypt comparison to avoid user enumeration
@@ -90,21 +95,24 @@ class AuthenticationService(
                 tokenHash = refreshTokenHash,
                 user = user,
                 expiresAt = refreshTokenExpiration,
+                familyId = UUID.randomUUID().toString(),
                 revoked = false,
             )
 
         refreshTokenRepository.save(refreshTokenModel)
 
-        return AuthResponse(
+        return AuthTokens(
             accessToken = accessToken,
             refreshToken = refreshToken,
-            tokenType = "Bearer",
-            expiresIn = accessTokenExpiration,
-            user = user.toAuthDTO(),
+            response =
+                AuthResponse(
+                    expiresIn = accessTokenExpiration,
+                    user = user.toAuthDTO(),
+                ),
         )
     }
 
-    fun refreshToken(rawToken: String): AuthResponse {
+    fun refreshToken(rawToken: String): AuthTokens {
         val tokenHash = jwtService.hashToken(rawToken)
         val existingToken =
             refreshTokenRepository.findByTokenHash(tokenHash) ?: throw EntryNotFoundException(
@@ -115,7 +123,20 @@ class AuthenticationService(
                 status = HttpStatus.BAD_REQUEST,
             )
 
-        if (existingToken.revoked || existingToken.expiresAt.isBefore(Instant.now(clock))) {
+        // ponytail: strict reuse detection, no grace window — add one if parallel-tab logouts become a real problem
+        if (existingToken.revoked) {
+            // must commit even though the refresh below rolls back with 401
+            requiresNewTx.executeWithoutResult {
+                refreshTokenRepository.revokeAllByFamilyId(existingToken.familyId)
+            }
+            throw InvalidTokenException(
+                message = "Refresh token reuse detected, token family revoked",
+                errorCode = GlobalErrorCode.INVALID_REFRESH_TOKEN,
+                status = HttpStatus.UNAUTHORIZED,
+            )
+        }
+
+        if (existingToken.expiresAt.isBefore(Instant.now(clock))) {
             throw InvalidTokenException(
                 message = "Refresh token is expired or invalid",
                 errorCode = GlobalErrorCode.INVALID_REFRESH_TOKEN,
@@ -125,21 +146,16 @@ class AuthenticationService(
 
         val user = existingToken.user
         val accessToken = jwtService.generateAccessToken(user)
-        val daysRemaining = ChronoUnit.DAYS.between(Instant.now(clock), existingToken.expiresAt)
+        val refreshToken = rotateRefreshToken(existingToken)
 
-        val refreshToken =
-            if (daysRemaining < REFRESH_ROTATION_THRESHOLD_DAYS) {
-                rotateRefreshToken(existingToken)
-            } else {
-                rawToken
-            }
-
-        return AuthResponse(
+        return AuthTokens(
             accessToken = accessToken,
             refreshToken = refreshToken,
-            tokenType = "Bearer",
-            expiresIn = jwtProperties.accessTokenExpiration,
-            user = user.toAuthDTO(),
+            response =
+                AuthResponse(
+                    expiresIn = jwtProperties.accessTokenExpiration,
+                    user = user.toAuthDTO(),
+                ),
         )
     }
 
@@ -189,6 +205,7 @@ class AuthenticationService(
                 tokenHash = newTokenHash,
                 user = oldToken.user,
                 expiresAt = Instant.now(clock).plusMillis(jwtProperties.refreshTokenExpiration),
+                familyId = oldToken.familyId,
             ),
         )
         return newToken

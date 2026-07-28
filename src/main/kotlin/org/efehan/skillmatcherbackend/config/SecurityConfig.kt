@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.config
 
+import org.efehan.skillmatcherbackend.config.filter.CsrfCookieFilter
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
 import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
 import org.springframework.context.annotation.Bean
@@ -17,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -33,7 +36,13 @@ class SecurityConfig(
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
         http
-            .csrf { it.disable() }
+            .csrf { csrf ->
+                csrf
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
+                    // STOMP handshake has no way to send the X-XSRF-TOKEN header
+                    .ignoringRequestMatchers("/ws/**")
+            }.addFilterAfter(CsrfCookieFilter(), CsrfFilter::class.java)
             .cors { }
             .headers { headers ->
                 // HSTS deliberately omitted: dev runs on plain HTTP, enable with TLS
@@ -54,6 +63,7 @@ class SecurityConfig(
                     .requestMatchers(
                         "/api/auth/login",
                         "/api/auth/refresh",
+                        "/api/auth/csrf",
                         "/api/auth/invitations/validate",
                         "/api/auth/invitations/accept",
                         "/api/auth/password-reset/**",
@@ -77,6 +87,7 @@ class SecurityConfig(
                 allowedOrigins = listOf("http://localhost:5173")
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
+                allowCredentials = true
                 maxAge = 3600
             }
         val source = UrlBasedCorsConfigurationSource()

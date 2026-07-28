@@ -64,7 +64,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/admin/skill-relations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(createRelationRequest(kotlin.id, java.id))
             }.andExpect {
                 status { isCreated() }
@@ -86,7 +86,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/admin/skill-relations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(createRelationRequest(kotlin.id, java.id))
             }.andExpect {
                 status { isForbidden() }
@@ -101,7 +101,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/admin/skill-relations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(createRelationRequest(kotlin.id, kotlin.id))
             }.andExpect {
                 status { isBadRequest() }
@@ -117,7 +117,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/admin/skill-relations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(createRelationRequest(kotlin.id, "nonexistent-id"))
             }.andExpect {
                 status { isNotFound() }
@@ -141,7 +141,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/admin/skill-relations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(createRelationRequest(kotlin.id, java.id))
             }.andExpect {
                 status { isConflict() }
@@ -162,7 +162,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .delete("/api/admin/skill-relations/${relation.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -177,7 +177,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .delete("/api/admin/skill-relations/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("SKILL_RELATION_NOT_FOUND") }
@@ -197,7 +197,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .delete("/api/admin/skill-relations/${relation.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
             }
@@ -227,7 +227,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/skill-relations?skillId=${kotlin.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -241,7 +241,7 @@ class SkillRelationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/skill-relations?skillId=nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("SKILL_NOT_FOUND") }

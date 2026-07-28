@@ -70,7 +70,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to "I'd like to join"))
             }.andExpect {
                 status { isCreated() }
@@ -91,13 +91,13 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to null))
             }.andExpect { status { isCreated() } }
 
         mockMvc
             .post("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to null))
             }.andExpect {
                 status { isConflict() }
@@ -115,7 +115,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to null))
             }.andExpect {
                 status { isConflict() }
@@ -130,7 +130,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/nonexistent/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to null))
             }.andExpect {
                 status { isNotFound() }
@@ -146,7 +146,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("message" to null))
             }.andExpect { status { isForbidden() } }
     }
@@ -171,7 +171,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(2) }
@@ -196,7 +196,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/projects/${project.id}/applications?sort=status,asc") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(2) }
@@ -215,7 +215,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/projects/${project.id}/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect { status { isForbidden() } }
     }
 
@@ -234,7 +234,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/accept") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.status") { value("ACCEPTED") }
@@ -259,7 +259,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/accept") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("APPLICATION_ACCESS_DENIED") }
@@ -279,7 +279,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/accept") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isConflict() }
                 jsonPath("$.errorCode") { value("APPLICATION_ALREADY_DECIDED") }
@@ -301,7 +301,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/decline") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("reason" to "Not enough experience"))
             }.andExpect {
                 status { isOk() }
@@ -325,7 +325,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/withdraw") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.status") { value("WITHDRAWN") }
@@ -346,7 +346,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${application.id}/withdraw") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("APPLICATION_ACCESS_DENIED") }
@@ -367,7 +367,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/me/applications") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(1) }
@@ -408,7 +408,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/invitations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("userId" to employer.id, "message" to "Join us"))
             }.andExpect {
                 status { isCreated() }
@@ -427,7 +427,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/invitations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("userId" to employer.id))
             }.andExpect { status { isForbidden() } }
     }
@@ -442,7 +442,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/invitations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("userId" to employer.id))
             }.andExpect {
                 status { isForbidden() }
@@ -462,7 +462,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/invitations") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(mapOf("userId" to employer.id))
             }.andExpect {
                 status { isConflict() }
@@ -485,7 +485,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${invitation.id}/accept-invitation") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.status") { value("ACCEPTED") }
@@ -511,7 +511,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${invitation.id}/accept-invitation") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("APPLICATION_ACCESS_DENIED") }
@@ -544,7 +544,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${invitation.id}/accept-invitation") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isConflict() }
                 jsonPath("$.errorCode") { value("PROJECT_FULL") }
@@ -570,7 +570,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/applications/${invitation.id}/decline-invitation") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.status") { value("DECLINED") }
@@ -607,7 +607,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/users/search?q=anna") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(1) }
@@ -618,7 +618,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
         // PMs are not returned even when matching the query
         mockMvc
             .get("/api/users/search?q=pm@firma") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.content.length()") { value(0) }
@@ -632,7 +632,7 @@ class ApplicationControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/users/search?q=test") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect { status { isForbidden() } }
     }
 }

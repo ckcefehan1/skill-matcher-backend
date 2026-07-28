@@ -59,7 +59,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = member.id))
             }.andExpect {
                 status { isCreated() }
@@ -100,7 +100,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = member.id))
             }.andExpect {
                 status { isForbidden() }
@@ -142,7 +142,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = member.id))
             }.andExpect {
                 status { isConflict() }
@@ -186,7 +186,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = member.id))
             }.andExpect {
                 status { isCreated() }
@@ -250,7 +250,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = newMember.id))
             }.andExpect {
                 status { isConflict() }
@@ -288,7 +288,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(ProjectMemberFixtures.buildAddProjectMemberRequest(userId = nonOwner.id))
             }.andExpect {
                 status { isForbidden() }
@@ -341,7 +341,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project.id}/members") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(1) }
@@ -381,7 +381,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}/members/${member.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -417,7 +417,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}/members/${nonMember.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_MEMBER_NOT_FOUND") }
@@ -456,7 +456,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members/leave") {
-                header("Authorization", "Bearer $memberToken")
+                withAuth(memberToken)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -492,7 +492,7 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/members/leave") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_MEMBER_NOT_FOUND") }
@@ -507,6 +507,6 @@ class ProjectMemberControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/some-id/members")
-            .andExpect { status { isUnauthorized() } }
+            .andExpect { status { isForbidden() } }
     }
 }

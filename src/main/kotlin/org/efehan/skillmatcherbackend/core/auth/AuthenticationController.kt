@@ -7,10 +7,15 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
+import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
+import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.CookieValue
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -22,11 +27,25 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "Authentication", description = "Authentication endpoints")
 class AuthenticationController(
     private val authenticationService: AuthenticationService,
+    private val authCookieService: AuthCookieService,
 ) {
+    @Operation(
+        summary = "Bootstrap CSRF token",
+        method = "GET",
+        description = "Safe endpoint that forces the XSRF-TOKEN cookie to be written. Call once before the first mutating request.",
+    )
+    @GetMapping("/csrf")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun csrf() {
+        // empty: CsrfFilter resolves the token, CookieCsrfTokenRepository writes the cookie
+    }
+
     @Operation(
         summary = "Login user",
         method = "POST",
-        description = "Authenticates a user and returns access and refresh tokens",
+        description =
+            "Authenticates a user and sets httpOnly access_token and refresh_token cookies. " +
+                "Requires the X-XSRF-TOKEN header.",
     )
     @ApiResponses(
         value = [
@@ -42,9 +61,6 @@ class AuthenticationController(
                                 name = "Successful login",
                                 value = """
                                 {
-                                    "accessToken": "eyJhbGciOiJSUzI1NiJ9...",
-                                    "refreshToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                                    "tokenType": "Bearer",
                                     "expiresIn": 900000,
                                     "user": {
                                         "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -139,14 +155,19 @@ class AuthenticationController(
         @Valid
         @RequestBody
         request: LoginRequest,
-    ): AuthResponse = authenticationService.login(request.email, request.password)
+        response: HttpServletResponse,
+    ): AuthResponse {
+        val tokens = authenticationService.login(request.email, request.password)
+        authCookieService.addCookies(response, tokens.accessToken, tokens.refreshToken)
+        return tokens.response
+    }
 
     @Operation(
         summary = "Refresh access token",
         method = "POST",
         description =
-            "Uses a valid refresh token to generate a new access token. " +
-                "If the refresh token is close to expiration (< 2 days), it will be rotated.",
+            "Uses the refresh_token cookie to issue a new access token. " +
+                "The refresh token is rotated on every use; reuse of a rotated token revokes the whole token family.",
     )
     @ApiResponses(
         value = [
@@ -162,9 +183,6 @@ class AuthenticationController(
                                 name = "Successful refresh",
                                 value = """
                                 {
-                                    "accessToken": "eyJhbGciOiJSUzI1NiJ9...",
-                                    "refreshToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                                    "tokenType": "Bearer",
                                     "expiresIn": 900000,
                                     "user": {
                                         "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -229,9 +247,21 @@ class AuthenticationController(
     @PostMapping("/refresh")
     @ResponseStatus(HttpStatus.OK)
     fun refreshToken(
-        @RequestBody
-        request: RefreshTokenRequest,
-    ): AuthResponse = authenticationService.refreshToken(request.refreshToken)
+        @CookieValue("\${cookie.refresh-token-name:refresh_token}", required = false)
+        rawToken: String?,
+        response: HttpServletResponse,
+    ): AuthResponse {
+        if (rawToken == null) {
+            throw InvalidTokenException(
+                message = "Refresh token cookie is missing",
+                errorCode = GlobalErrorCode.INVALID_REFRESH_TOKEN,
+                status = HttpStatus.UNAUTHORIZED,
+            )
+        }
+        val tokens = authenticationService.refreshToken(rawToken)
+        authCookieService.addCookies(response, tokens.accessToken, tokens.refreshToken)
+        return tokens.response
+    }
 
     @Operation(
         summary = "Logout user",
@@ -273,8 +303,10 @@ class AuthenticationController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun logout(
         @AuthenticationPrincipal securityUser: SecurityUser,
+        response: HttpServletResponse,
     ) {
         authenticationService.logout(securityUser.user.id)
+        authCookieService.clearCookies(response)
     }
 
     @Operation(

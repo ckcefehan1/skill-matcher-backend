@@ -46,7 +46,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isCreated() }
@@ -80,7 +80,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isOk() }
@@ -111,7 +111,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -140,7 +140,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -169,7 +169,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -198,7 +198,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isBadRequest() }
@@ -230,7 +230,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
@@ -260,7 +260,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(0) }
@@ -301,7 +301,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project1.id}/skills") {
-                header("Authorization", "Bearer $token1")
+                withAuth(token1)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(1) }
@@ -331,7 +331,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}/skills/${projectSkill.id}") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
@@ -359,7 +359,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .delete("/api/projects/${project.id}/skills/nonexistent-id") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_SKILL_NOT_FOUND") }
@@ -398,7 +398,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .get("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $otherToken")
+                withAuth(otherToken)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("PROJECT_ACCESS_DENIED") }
@@ -406,7 +406,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .post("/api/projects/${project.id}/skills") {
-                header("Authorization", "Bearer $otherToken")
+                withAuth(otherToken)
                 withBodyRequest(ProjectSkillFixtures.buildAddProjectSkillRequest(name = "Java"))
             }.andExpect {
                 status { isForbidden() }
@@ -415,7 +415,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .delete("/api/projects/${project.id}/skills/${projectSkill.id}") {
-                header("Authorization", "Bearer $otherToken")
+                withAuth(otherToken)
             }.andExpect {
                 status { isForbidden() }
                 jsonPath("$.errorCode") { value("PROJECT_ACCESS_DENIED") }
@@ -442,7 +442,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         // when & then
         mockMvc
             .post("/api/projects/nonexistent-id/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
                 status { isNotFound() }
@@ -451,7 +451,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
 
         mockMvc
             .get("/api/projects/nonexistent-id/skills") {
-                header("Authorization", "Bearer $token")
+                withAuth(token)
             }.andExpect {
                 status { isNotFound() }
                 jsonPath("$.errorCode") { value("PROJECT_NOT_FOUND") }
@@ -491,7 +491,7 @@ class ProjectSkillControllerIT : AbstractIntegrationTest() {
         mockMvc
             .delete("/api/projects/${project.id}/skills/some-id")
             .andExpect {
-                status { isUnauthorized() }
+                status { isForbidden() }
             }
     }
 }

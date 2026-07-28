@@ -63,6 +63,9 @@ class AuthenticationServiceTest {
     @MockK
     private lateinit var passwordValidationService: PasswordValidationService
 
+    @MockK(relaxed = true)
+    private lateinit var transactionManager: org.springframework.transaction.PlatformTransactionManager
+
     @MockK
     private lateinit var clock: Clock
 
@@ -107,12 +110,11 @@ class AuthenticationServiceTest {
         // then
         assertThat(result.accessToken).isEqualTo(ACCESS_TOKEN)
         assertThat(result.refreshToken).isEqualTo(REFRESH_TOKEN)
-        assertThat(result.tokenType).isEqualTo("Bearer")
-        assertThat(result.expiresIn).isEqualTo(ACCESS_TOKEN_EXPIRATION)
-        assertThat(result.user.email).isEqualTo(EMAIL)
-        assertThat(result.user.firstName).isEqualTo("Test")
-        assertThat(result.user.lastName).isEqualTo("User")
-        assertThat(result.user.role).isEqualTo("ADMIN")
+        assertThat(result.response.expiresIn).isEqualTo(ACCESS_TOKEN_EXPIRATION)
+        assertThat(result.response.user.email).isEqualTo(EMAIL)
+        assertThat(result.response.user.firstName).isEqualTo("Test")
+        assertThat(result.response.user.lastName).isEqualTo("User")
+        assertThat(result.response.user.role).isEqualTo("ADMIN")
     }
 
     @Test
@@ -136,6 +138,7 @@ class AuthenticationServiceTest {
         assertThat(saved.tokenHash).isEqualTo(REFRESH_TOKEN_HASH)
         assertThat(saved.user).isEqualTo(user)
         assertThat(saved.expiresAt).isEqualTo(FIXED_INSTANT.plusMillis(REFRESH_TOKEN_EXPIRATION))
+        assertThat(saved.familyId).isNotBlank()
         assertThat(saved.revoked).isFalse()
     }
 
@@ -363,29 +366,43 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    fun `refreshToken returns new access token when refresh token is valid`() {
+    fun `refreshToken rotates on every use and keeps family`() {
         // given
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
+        val newRefreshToken = "new-refresh-token-uuid"
+        val newRefreshTokenHash = "new-hashed-refresh-token"
         val existingToken =
             RefreshTokenModel(
                 tokenHash = REFRESH_TOKEN_HASH,
                 user = user,
                 expiresAt = FIXED_INSTANT.plus(7, ChronoUnit.DAYS),
+                familyId = "family-1",
             )
+        val tokenSlot = slot<RefreshTokenModel>()
 
         every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
         every { refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH) } returns existingToken
         every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
+        every { jwtService.generateOpaqueRefreshToken() } returns newRefreshToken
+        every { jwtService.hashToken(newRefreshToken) } returns newRefreshTokenHash
+        every { refreshTokenRepository.save(capture(tokenSlot)) } returnsArgument 0
 
         // when
         val result = authenticationService.refreshToken(REFRESH_TOKEN)
 
         // then
         assertThat(result.accessToken).isEqualTo(ACCESS_TOKEN)
-        assertThat(result.refreshToken).isEqualTo(REFRESH_TOKEN)
-        assertThat(result.tokenType).isEqualTo("Bearer")
-        assertThat(result.expiresIn).isEqualTo(ACCESS_TOKEN_EXPIRATION)
-        assertThat(result.user.email).isEqualTo(EMAIL)
+        assertThat(result.refreshToken).isEqualTo(newRefreshToken)
+        assertThat(result.response.expiresIn).isEqualTo(ACCESS_TOKEN_EXPIRATION)
+        assertThat(result.response.user.email).isEqualTo(EMAIL)
+        assertThat(existingToken.revoked).isTrue()
+
+        val saved = tokenSlot.captured
+        assertThat(saved.tokenHash).isEqualTo(newRefreshTokenHash)
+        assertThat(saved.user).isEqualTo(user)
+        assertThat(saved.familyId).isEqualTo("family-1")
+        assertThat(saved.expiresAt).isEqualTo(FIXED_INSTANT.plusMillis(REFRESH_TOKEN_EXPIRATION))
+        assertThat(saved.revoked).isFalse()
     }
 
     @Test
@@ -407,7 +424,7 @@ class AuthenticationServiceTest {
     }
 
     @Test
-    fun `refreshToken throws InvalidTokenException when token is revoked`() {
+    fun `refreshToken revokes whole family when revoked token is reused`() {
         // given
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
         val revokedToken =
@@ -415,11 +432,13 @@ class AuthenticationServiceTest {
                 tokenHash = REFRESH_TOKEN_HASH,
                 user = user,
                 expiresAt = FIXED_INSTANT.plus(7, ChronoUnit.DAYS),
+                familyId = "family-1",
                 revoked = true,
             )
 
         every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
         every { refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH) } returns revokedToken
+        every { refreshTokenRepository.revokeAllByFamilyId("family-1") } returns 2
 
         // then
         assertThatThrownBy {
@@ -430,6 +449,7 @@ class AuthenticationServiceTest {
                 assertThat(e.errorCode).isEqualTo(GlobalErrorCode.INVALID_REFRESH_TOKEN)
             })
 
+        verify(exactly = 1) { refreshTokenRepository.revokeAllByFamilyId("family-1") }
         verify(exactly = 0) { jwtService.generateAccessToken(any()) }
     }
 
@@ -442,6 +462,7 @@ class AuthenticationServiceTest {
                 tokenHash = REFRESH_TOKEN_HASH,
                 user = user,
                 expiresAt = FIXED_INSTANT.minus(1, ChronoUnit.HOURS),
+                familyId = "family-1",
             )
 
         every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
@@ -457,66 +478,6 @@ class AuthenticationServiceTest {
             })
 
         verify(exactly = 0) { jwtService.generateAccessToken(any()) }
-    }
-
-    @Test
-    fun `refreshToken does not rotate when remaining days above threshold`() {
-        // given - token expires in 5 days (above 2-day threshold)
-        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
-        val existingToken =
-            RefreshTokenModel(
-                tokenHash = REFRESH_TOKEN_HASH,
-                user = user,
-                expiresAt = FIXED_INSTANT.plus(5, ChronoUnit.DAYS),
-            )
-
-        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
-        every { refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH) } returns existingToken
-        every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
-
-        // when
-        val result = authenticationService.refreshToken(REFRESH_TOKEN)
-
-        // then
-        assertThat(result.refreshToken).isEqualTo(REFRESH_TOKEN)
-        assertThat(existingToken.revoked).isFalse()
-        verify(exactly = 0) { jwtService.generateOpaqueRefreshToken() }
-        verify(exactly = 0) { refreshTokenRepository.save(any()) }
-    }
-
-    @Test
-    fun `refreshToken rotates when remaining days below threshold`() {
-        // given - token expires in 1 day (below 2-day threshold)
-        val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
-        val newRefreshToken = "new-refresh-token-uuid"
-        val newRefreshTokenHash = "new-hashed-refresh-token"
-        val existingToken =
-            RefreshTokenModel(
-                tokenHash = REFRESH_TOKEN_HASH,
-                user = user,
-                expiresAt = FIXED_INSTANT.plus(1, ChronoUnit.DAYS),
-            )
-        val tokenSlot = slot<RefreshTokenModel>()
-
-        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
-        every { refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH) } returns existingToken
-        every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
-        every { jwtService.generateOpaqueRefreshToken() } returns newRefreshToken
-        every { jwtService.hashToken(newRefreshToken) } returns newRefreshTokenHash
-        every { refreshTokenRepository.save(capture(tokenSlot)) } returnsArgument 0
-
-        // when
-        val result = authenticationService.refreshToken(REFRESH_TOKEN)
-
-        // then
-        assertThat(result.refreshToken).isEqualTo(newRefreshToken)
-        assertThat(existingToken.revoked).isTrue()
-
-        val saved = tokenSlot.captured
-        assertThat(saved.tokenHash).isEqualTo(newRefreshTokenHash)
-        assertThat(saved.user).isEqualTo(user)
-        assertThat(saved.expiresAt).isEqualTo(FIXED_INSTANT.plusMillis(REFRESH_TOKEN_EXPIRATION))
-        assertThat(saved.revoked).isFalse()
     }
 
     @Test

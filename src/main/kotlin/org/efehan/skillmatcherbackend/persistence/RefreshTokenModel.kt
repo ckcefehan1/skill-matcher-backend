@@ -21,6 +21,8 @@ class RefreshTokenModel(
     val user: UserModel,
     @Column(name = "expires_at", nullable = false)
     val expiresAt: Instant,
+    @Column(name = "family_id", nullable = false)
+    val familyId: String,
     @Column(name = "revoked", nullable = false)
     var revoked: Boolean = false,
 ) : AuditingBaseEntity()
@@ -36,4 +38,13 @@ interface RefreshTokenRepository : JpaRepository<RefreshTokenModel, String> {
                 "WHERE rt.user.id = :userId",
     )
     fun revokeAllUserTokens(userId: String): Int
+
+    @Modifying
+    @Query(
+        value =
+            "UPDATE RefreshTokenModel rt " +
+                "SET rt.revoked = true " +
+                "WHERE rt.familyId = :familyId",
+    )
+    fun revokeAllByFamilyId(familyId: String): Int
 }
