@@ -28,12 +28,22 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - `@Cacheable` auf Skill-Katalog und Matching-Queries, `@CacheEvict` auf Mutations.
 - **Redis bewusst später**: erst bei mehreren Instanzen (Cache-Kohärenz), verteilten Rate-Limit-Buckets oder Sessions. Spring-Cache-Abstraktion macht Wechsel zum Config-Tausch.
 
-## 5. Observability-Basics
+## 5. Observability ✅ umgesetzt (Branch `feature/observability`)
 
-- Strukturierte JSON-Logs + Correlation-ID pro Request.
-- Error-Tracking: Sentry (Backend + Frontend).
-- Health-Checks (Actuator `/health`).
-- Später: Micrometer + Prometheus + Grafana für Latenz/Fehlerrate/DB-Pool.
+**Gemacht:**
+
+- Strukturierte Logs: `logback-spring.xml` — Profil `prod` = JSON via Logstash-Encoder, lokal lesbares Console-Pattern.
+- Correlation-ID pro Request: `CorrelationIdFilter` schreibt MDC `correlationId`, echoed `X-Correlation-ID`-Header, akzeptiert eingehende IDs (max. 100 Zeichen).
+- Health-Checks: Actuator `/health` inkl. K8s-Probes (`/health/liveness`, `/health/readiness`).
+- Metriken: Micrometer + Prometheus-Registry, Endpoint `/actuator/prometheus`, Metrik-Tag `application=skill-matcher-backend`.
+- Compose: Prometheus (9090) scrapt `host.docker.internal:8080/actuator/prometheus`, Grafana (3000, admin/admin) mit provisionierter Prometheus-Datasource und JVM-Micrometer-Dashboard (ID 4701).
+- Tests: `CorrelationIdFilterTest`, `ObservabilityIT` (health/prometheus ohne Auth, Correlation-Echo).
+
+**Nicht gemacht (offen):**
+
+- Error-Tracking (Sentry o.ä.): bewusst rausgelassen — ohne echten DSN nur tote Dependency. Einrichten wenn Account existiert; Achtung: `sentry-spring-boot-4-starter` nötig, Jakarta-Variante inkompatibel mit Spring Boot 4.
+- Auth auf `/actuator/prometheus`: aktuell unauthenticated (ponytail-Kommentar in `SecurityConfig`) — gehört zu Punkt 7.
+- Alerting (Alertmanager, Regeln): nicht angefasst.
 
 ## 6. Token-Härtung (größerer Umbau, eigene Session)
 
