@@ -58,7 +58,8 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 **Nicht gemacht (offen):**
 
 - WebSocket-Auth per Cookie/Ticket: Frontend nutzt noch kein STOMP. Bei Adoption prüfen — STOMP-CONNECT kann keine Browser-Cookies setzen, aktuell läuft es über Bearer im Header (Frontend hat keinen Zugriff mehr auf Token → Ticket-Endpoint nötig).
-- Bekannter Tradeoff: zwei Tabs, die exakt gleichzeitig refreshen, loggen sich gegenseitig aus (Reuse-Detection schlägt zu).
+- ~~Bekannter Tradeoff: zwei Tabs, die exakt gleichzeitig refreshen, loggen sich gegenseitig aus~~ → gelöst via Web Locks (`navigator.locks.request('auth-refresh')` im axios-Refresh-Pfad): Cross-Tab-Single-Flight, zweiter Tab sendet frisches Cookie statt stalem Token.
+- Nacharbeiten: CSRF auf Security-7-Bordmittel `csrf.spa()` umgestellt; `CsrfAuthenticationStrategy` deaktiviert (wiped sonst XSRF-Cookie bei jeder Filter-Auth — Session-Fixation-Schutz, bei STATELESS sinnlos).
 
 ## 7. Weitere Security
 

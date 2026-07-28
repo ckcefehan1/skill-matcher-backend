@@ -1,6 +1,5 @@
 package org.efehan.skillmatcherbackend.config
 
-import org.efehan.skillmatcherbackend.config.filter.CsrfCookieFilter
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
 import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
 import org.springframework.context.annotation.Bean
@@ -18,8 +17,6 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository
-import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -37,13 +34,13 @@ class SecurityConfig(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
         http
             .csrf { csrf ->
-                csrf
-                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                    .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
-                    // STOMP handshake has no way to send the X-XSRF-TOKEN header
-                    .ignoringRequestMatchers("/ws/**")
-            }.addFilterAfter(CsrfCookieFilter(), CsrfFilter::class.java)
-            .cors { }
+                csrf.spa()
+                // STOMP handshake has no way to send the X-XSRF-TOKEN header
+                csrf.ignoringRequestMatchers("/ws/**")
+                // CsrfAuthenticationStrategy would wipe the XSRF-TOKEN cookie on every
+                // filter-authenticated request — session fixation defense, meaningless when STATELESS
+                csrf.sessionAuthenticationStrategy { _, _, _ -> }
+            }.cors { }
             .headers { headers ->
                 // HSTS deliberately omitted: dev runs on plain HTTP, enable with TLS
                 headers
