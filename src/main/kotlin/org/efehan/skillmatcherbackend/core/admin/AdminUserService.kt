@@ -1,8 +1,10 @@
 package org.efehan.skillmatcherbackend.core.admin
 
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -24,6 +26,7 @@ class AdminUserService(
     private val invitationService: InvitationService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val sessionRegistry: WebSocketSessionRegistry,
+    private val auditService: AuditService,
 ) {
     fun createUser(
         email: String,
@@ -63,6 +66,8 @@ class AdminUserService(
 
         invitationService.createAndSendInvitation(savedUser)
 
+        auditService.record(AuditAction.USER_CREATED, targetId = savedUser.id, detail = savedUser.email)
+
         return savedUser
     }
 
@@ -86,6 +91,12 @@ class AdminUserService(
             refreshTokenRepository.revokeAllUserTokens(userId)
             sessionRegistry.disconnect(userId)
         }
+
+        auditService.record(
+            if (enabled) AuditAction.USER_ENABLED else AuditAction.USER_DISABLED,
+            targetId = userId,
+            detail = user.email,
+        )
     }
 
     fun listUsers(pageable: Pageable): Page<UserModel> = userRepository.findAll(pageable)
@@ -114,8 +125,15 @@ class AdminUserService(
                     status = HttpStatus.NOT_FOUND,
                 )
 
+        val previousRole = user.role.name
         user.role = role
         userRepository.save(user)
         refreshTokenRepository.revokeAllUserTokens(user.id)
+
+        auditService.record(
+            AuditAction.USER_ROLE_CHANGED,
+            targetId = user.id,
+            detail = "$previousRole -> ${role.name}",
+        )
     }
 }

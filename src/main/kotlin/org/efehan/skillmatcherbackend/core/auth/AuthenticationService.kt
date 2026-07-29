@@ -3,7 +3,9 @@ package org.efehan.skillmatcherbackend.core.auth
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -38,6 +40,7 @@ class AuthenticationService(
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
     private val sessionRegistry: WebSocketSessionRegistry,
+    private val auditService: AuditService,
     transactionManager: PlatformTransactionManager,
     private val clock: Clock = Clock.systemUTC(),
 ) {
@@ -55,6 +58,10 @@ class AuthenticationService(
         if (user == null) {
             // Equalize timing with a real bcrypt comparison to avoid user enumeration
             passwordEncoder.matches(password, dummyBcryptHash)
+            // own transaction, the throw below rolls this one back
+            requiresNewTx.executeWithoutResult {
+                auditService.record(AuditAction.LOGIN_FAILED, actor = null, detail = email)
+            }
             throw InvalidCredentialsException(
                 errorCode = GlobalErrorCode.BAD_CREDENTIALS,
                 status = HttpStatus.UNAUTHORIZED,
@@ -83,6 +90,8 @@ class AuthenticationService(
             user.lockedUntil = null
             userRepository.save(user)
         }
+
+        auditService.record(AuditAction.LOGIN_SUCCEEDED, actor = user)
 
         val accessToken = jwtService.generateAccessToken(user)
 
@@ -180,6 +189,8 @@ class AuthenticationService(
 
         refreshTokenRepository.revokeAllUserTokens(user.id)
         sessionRegistry.disconnect(user.id)
+
+        auditService.record(AuditAction.PASSWORD_CHANGED, actor = user)
     }
 
     fun logout(userId: String) {
@@ -197,9 +208,11 @@ class AuthenticationService(
         requiresNewTx.executeWithoutResult {
             val fresh = userRepository.findByIdOrNull(user.id) ?: return@executeWithoutResult
             fresh.failedLoginAttempts += 1
+            auditService.record(AuditAction.LOGIN_FAILED, actor = fresh)
             if (fresh.failedLoginAttempts >= loginLockoutProperties.maxFailedAttempts) {
                 fresh.lockedUntil = now.plus(Duration.ofMinutes(loginLockoutProperties.lockoutDurationMinutes))
                 fresh.failedLoginAttempts = 0
+                auditService.record(AuditAction.ACCOUNT_LOCKED, actor = fresh)
             }
             userRepository.save(fresh)
         }

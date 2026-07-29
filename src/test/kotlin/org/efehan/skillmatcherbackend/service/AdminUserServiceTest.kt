@@ -12,6 +12,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.admin.AdminUserService
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.RoleBuilder
@@ -47,6 +48,9 @@ class AdminUserServiceTest {
 
     @MockK(relaxed = true)
     private lateinit var sessionRegistry: WebSocketSessionRegistry
+
+    @MockK(relaxed = true)
+    private lateinit var auditService: AuditService
 
     @InjectMockKs
     private lateinit var adminUserService: AdminUserService

@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.testcontainers
 
 import org.efehan.skillmatcherbackend.TestcontainersConfiguration
+import org.efehan.skillmatcherbackend.persistence.AuditLogRepository
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
@@ -90,11 +91,15 @@ abstract class AbstractIntegrationTest {
     protected lateinit var notificationRepository: NotificationRepository
 
     @Autowired
+    protected lateinit var auditLogRepository: AuditLogRepository
+
+    @Autowired
     protected lateinit var cacheManager: CacheManager
 
     @BeforeEach
     fun cleanUp() {
         cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
+        auditLogRepository.deleteAll()
         notificationRepository.deleteAll()
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()

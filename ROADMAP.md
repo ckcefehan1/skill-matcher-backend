@@ -63,9 +63,10 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 
 ## 7. Weitere Security
 
-- **Audit-Log**: Admin-Aktionen, Logins, Application-Decisions in Tabelle.
-- **Passwort-Policy**: HaveIBeenPwned k-Anonymity-Check bei Registrierung/Change (externer API-Call → danach Circuit Breaker relevant).
-- Actuator-Endpoints absichern.
+- ~~**Audit-Log**: Admin-Aktionen, Logins, Application-Decisions in Tabelle.~~ ✅ `audit_logs` + `AuditService`, lesbar über `GET /api/admin/audit-logs`. Actor ist denormalisiert (kein FK), damit der Trail gelöschte Accounts überlebt.
+- **Passwort-Policy**: HaveIBeenPwned k-Anonymity-Check bei Registrierung/Change (externer API-Call → danach Circuit Breaker relevant). Bewusst zurückgestellt.
+- ~~Actuator-Endpoints absichern.~~ ✅ Eigene Filter-Chain mit HTTP Basic für `/actuator/**`; nur `/actuator/health/**` bleibt offen für Container-Probes. Prometheus scrapt mit `basic_auth`.
+- Nebenbefund: Login-Lockout zählte nie hoch — `login()` warf direkt nach dem Increment, der Zähler rollte mit zurück. Läuft jetzt in eigener Transaktion.
 - Später: 2FA (TOTP), Session-Management-UI.
 
 ## 8. Tests

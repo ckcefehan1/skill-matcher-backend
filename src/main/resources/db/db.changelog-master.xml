@@ -37,4 +37,5 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/v0.22_add_login_lockout.xml"/>
     <include file="db/changelog/v0.23_add_refresh_token_family.xml"/>
     <include file="db/changelog/v0.24_create_notifications.xml"/>
+    <include file="db/changelog/v0.25_create_audit_logs.xml"/>
 </databaseChangeLog>
