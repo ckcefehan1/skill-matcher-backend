@@ -1,9 +1,11 @@
 package org.efehan.skillmatcherbackend.core.application
 
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
+import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationModel
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
@@ -31,6 +33,7 @@ class ApplicationService(
     private val userRepo: UserRepository,
     private val memberService: ProjectMemberService,
     private val emailService: EmailService,
+    private val auditService: AuditService,
 ) {
     fun apply(
         user: UserModel,
@@ -95,6 +98,7 @@ class ApplicationService(
             accepted = true,
             reason = null,
         )
+        recordDecision(AuditAction.APPLICATION_ACCEPTED, pm, application)
         return applicationRepo.save(application)
     }
 
@@ -118,6 +122,7 @@ class ApplicationService(
             accepted = false,
             reason = reason,
         )
+        recordDecision(AuditAction.APPLICATION_DECLINED, pm, application)
         return applicationRepo.save(application)
     }
 
@@ -215,6 +220,7 @@ class ApplicationService(
             project = application.project,
             accepted = true,
         )
+        recordDecision(AuditAction.APPLICATION_ACCEPTED, user, application)
         return applicationRepo.save(application)
     }
 
@@ -236,8 +242,20 @@ class ApplicationService(
             project = application.project,
             accepted = false,
         )
+        recordDecision(AuditAction.APPLICATION_DECLINED, user, application)
         return applicationRepo.save(application)
     }
+
+    private fun recordDecision(
+        action: AuditAction,
+        actor: UserModel,
+        application: ProjectApplicationModel,
+    ) = auditService.record(
+        action = action,
+        actor = actor,
+        targetId = application.id,
+        detail = "project=${application.project.name} applicant=${application.user.email}",
+    )
 
     @Transactional(readOnly = true)
     fun listForProject(

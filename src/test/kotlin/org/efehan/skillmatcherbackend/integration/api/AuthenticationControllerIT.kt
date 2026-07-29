@@ -145,6 +145,29 @@ class AuthenticationControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
+    fun `should lock account after five failed logins`() {
+        // given
+        val user = createUser()
+        val wrong = LoginRequest(email = user.email, password = "Wrong-Password1!")
+
+        // when
+        repeat(5) {
+            mockMvc.post("/api/auth/login") { withBodyRequest(wrong) }.andExpect { status { isUnauthorized() } }
+        }
+
+        // then — the counter only survives because registerFailedLogin commits in its own
+        // transaction; login() rethrows and would otherwise roll the increment back
+        assertThat(userRepository.findById(user.id).get().lockedUntil).isAfter(Instant.now())
+        mockMvc
+            .post("/api/auth/login") {
+                withBodyRequest(LoginRequest(email = user.email, password = "Secret-Password1!"))
+            }.andExpect {
+                status { isLocked() }
+                jsonPath("$.errorCode") { value("ACCOUNT_LOCKED") }
+            }
+    }
+
+    @Test
     fun `should return 403 when account is disabled`() {
         // given
         val password = "Secret-Password1!"

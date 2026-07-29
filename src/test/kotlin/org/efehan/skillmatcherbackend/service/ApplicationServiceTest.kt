@@ -8,6 +8,7 @@ import io.mockk.runs
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.application.ApplicationService
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
@@ -55,6 +56,9 @@ class ApplicationServiceTest {
     @MockK
     private lateinit var emailService: EmailService
 
+    @MockK(relaxed = true)
+    private lateinit var auditService: AuditService
+
     private lateinit var service: ApplicationService
 
     private val pm = UserBuilder().build(email = "pm@firma.de", firstName = "PM", lastName = "User")
@@ -71,6 +75,7 @@ class ApplicationServiceTest {
                 userRepo = userRepo,
                 memberService = memberService,
                 emailService = emailService,
+                auditService = auditService,
             )
         every { emailService.sendApplicationSubmittedEmail(any(), any(), any(), any()) } just runs
         every { emailService.sendApplicationDecidedEmail(any(), any(), any(), any()) } just runs

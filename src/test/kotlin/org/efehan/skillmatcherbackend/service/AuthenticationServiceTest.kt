@@ -12,6 +12,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.auth.AuthenticationService
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
@@ -36,6 +37,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("Authentication Service Unit Tests")
@@ -66,6 +68,9 @@ class AuthenticationServiceTest {
 
     @MockK(relaxed = true)
     private lateinit var sessionRegistry: WebSocketSessionRegistry
+
+    @MockK(relaxed = true)
+    private lateinit var auditService: AuditService
 
     @MockK(relaxed = true)
     private lateinit var transactionManager: org.springframework.transaction.PlatformTransactionManager
@@ -252,6 +257,7 @@ class AuthenticationServiceTest {
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
@@ -273,6 +279,7 @@ class AuthenticationServiceTest {
         user.failedLoginAttempts = 4
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
@@ -358,6 +365,7 @@ class AuthenticationServiceTest {
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
