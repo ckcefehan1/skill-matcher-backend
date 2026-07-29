@@ -105,6 +105,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - **DLQ-Alerting**: Prometheus scrapt `rabbitmq:15692`, Regeln in `docker/prometheus/rules.yml` — `DeadLetterQueueNotEmpty` (beide DLQs) und `ChatQueueBacklog`.
 - **Rate-Limit** auf `/api/auth/ws-ticket` (30/min) — der Endpoint gibt Credentials aus und lag vorher trotz `/api/auth/`-Prefix außerhalb des Filters.
 - **Chat-Partner-Suche**: Mindestlänge 2, Matching nur noch auf Vor-/Nachname. Das Matching auf `email` ohne Rückgabe der Adresse machte den Endpoint zum Enumeration-Orakel für beliebige Mailadressen.
+- **Kein Catch auf `DataIntegrityViolationException`** in `ChatService.createConversation`: bei entity-assigned IDs ist `save()` ein `persist()`, der INSERT fällt erst beim Flush an — also nach dem Catch, der den Race dadurch ungebremst durchließ (gleicher Defekt wie zuvor in `NotificationService`). Stattdessen Verlass auf `uq_conversations_user_pair` plus Rollback/Retry.
 - **Tests**: `ChatRabbitIT` fährt einen RabbitMQ-Testcontainer hoch und prüft einen echten Publish-Consume-Roundtrip inkl. DLQ-Tiefe — der `test`-Profil-Default schaltet Rabbit ab, wodurch Config, Publisher, Listener und Serialisierung vorher komplett unausgeführt blieben (JaCoCo bleibt dabei grün, weil die Klassen nicht mal geladen werden — derselbe blinde Fleck existierte schon beim Mail-Teil). `WebSocketSubscriptionAuthIT` deckt den Leak oben ab.
 
 **Nicht gemacht (offen):**
@@ -114,6 +115,8 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - **DLQ hat weiterhin keinen Konsumenten** — nur den Alert. Reicht, solange jemand auf den Alert schaut; Replay-Mechanismus bei Bedarf.
 - **Periodische Session-Revalidierung**: Sessions sterben bei Logout/Deaktivierung/Passwortwechsel, aber ein abgelaufener Access-Token oder ein Rollenwechsel beendet sie nicht — `SecurityUser` ist beim CONNECT eingefroren. Offen: Scheduler, der offene Sessions gegen `isEnabled` und Rolle nachprüft.
 - **Volltextsuche** für die Chat-Partner-Suche (aktuell `LIKE`) — gehört zu Punkt 9.
+- **Frontend**: Chat-UI und Notification-Glocke gegen die neuen Endpoints. Achtung, die Subscribe-Allowlist in `WebSocketAuthInterceptor` erlaubt exakt sechs Destinations — eine siebte im Client schließt die Session, ohne dass der Client eine Fehlermeldung bekommt.
+- **Review-Restposten ohne eigenen Punkt**: `searchByRole` (Admin-/Matching-Suche) matcht weiterhin auf `LOWER(u.email)`. Nicht Teil des Chat-Reviews und dort liefert die Antwort die Adresse ohnehin mit, also kein Orakel — aber dieselbe Konstruktion, die bei `searchChatPartners` zum Problem wurde. Beim Volltextsuche-Umbau mit anfassen.
 
 ## Bewusst verschoben ("add when", nicht "add now")
 

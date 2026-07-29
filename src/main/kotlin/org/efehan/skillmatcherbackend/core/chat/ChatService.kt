@@ -9,7 +9,6 @@ import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -103,12 +102,11 @@ class ChatService(
         val userOne = if (user.id < partner.id) user else partner
         val userTwo = if (user.id < partner.id) partner else user
 
-        return try {
-            val conversation = conversationRepo.save(ConversationModel(userOne = userOne, userTwo = userTwo))
-            conversation to true
-        } catch (_: DataIntegrityViolationException) {
-            conversationRepo.findByUsers(user, partner)!! to false
-        }
+        // A simultaneous create by the other party is left to uq_conversations_user_pair:
+        // the violation rolls this transaction back and the retry finds the row above.
+        // Catching it here cannot work — the id is entity-assigned, so the INSERT is
+        // deferred to flush time and never throws inside the call.
+        return conversationRepo.save(ConversationModel(userOne = userOne, userTwo = userTwo)) to true
     }
 
     fun sendMessage(
