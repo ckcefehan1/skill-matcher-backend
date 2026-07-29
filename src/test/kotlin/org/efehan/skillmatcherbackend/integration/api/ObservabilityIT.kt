@@ -2,13 +2,25 @@ package org.efehan.skillmatcherbackend.integration.api
 
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.config.filter.CorrelationIdFilter
+import org.efehan.skillmatcherbackend.config.properties.ActuatorProperties
 import org.efehan.skillmatcherbackend.testcontainers.AbstractIntegrationTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpHeaders
 import org.springframework.test.web.servlet.get
+import java.util.Base64
 
 @DisplayName("Observability Integration Tests")
 class ObservabilityIT : AbstractIntegrationTest() {
+    @Autowired
+    private lateinit var actuatorProperties: ActuatorProperties
+
+    private fun basicAuth(
+        username: String,
+        password: String,
+    ) = "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+
     @Test
     fun `health endpoint is reachable without auth`() {
         mockMvc
@@ -20,13 +32,26 @@ class ObservabilityIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `prometheus endpoint exposes metrics without auth`() {
+    fun `prometheus endpoint requires the scrape credential`() {
         mockMvc
             .get("/actuator/prometheus")
-            .andExpect {
+            .andExpect { status { isUnauthorized() } }
+
+        mockMvc
+            .get("/actuator/prometheus") {
+                header(HttpHeaders.AUTHORIZATION, basicAuth(actuatorProperties.username, actuatorProperties.password))
+            }.andExpect {
                 status { isOk() }
                 content { string(org.hamcrest.Matchers.containsString("jvm_")) }
             }
+    }
+
+    @Test
+    fun `prometheus endpoint rejects a wrong scrape password`() {
+        mockMvc
+            .get("/actuator/prometheus") {
+                header(HttpHeaders.AUTHORIZATION, basicAuth(actuatorProperties.username, "wrong"))
+            }.andExpect { status { isUnauthorized() } }
     }
 
     @Test

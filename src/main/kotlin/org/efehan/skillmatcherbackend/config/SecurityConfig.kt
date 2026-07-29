@@ -2,19 +2,25 @@ package org.efehan.skillmatcherbackend.config
 
 import org.efehan.skillmatcherbackend.config.filter.JwtAuthenticationFilter
 import org.efehan.skillmatcherbackend.config.filter.RateLimitingFilter
+import org.efehan.skillmatcherbackend.config.properties.ActuatorProperties
 import org.efehan.skillmatcherbackend.config.properties.CorsProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.ProviderManager
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.core.userdetails.User
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.provisioning.InMemoryUserDetailsManager
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
@@ -32,6 +38,40 @@ class SecurityConfig(
     private val rateLimitingFilter: RateLimitingFilter,
     private val corsProperties: CorsProperties,
 ) {
+    /**
+     * Metrics expose endpoint names, user counts and JVM internals, so the scrape needs a
+     * credential of its own — the app's JWT cookies are useless to Prometheus. Health stays
+     * open for container probes; it reports status only.
+     */
+    @Bean
+    @Order(1)
+    fun actuatorSecurityFilterChain(
+        http: HttpSecurity,
+        actuatorProperties: ActuatorProperties,
+    ): SecurityFilterChain =
+        http
+            .securityMatcher("/actuator/**")
+            // stateless basic auth, no cookie to ride on
+            .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .authorizeHttpRequests {
+                it.requestMatchers("/actuator/health/**").permitAll()
+                it.anyRequest().authenticated()
+            }.httpBasic { }
+            .authenticationManager(
+                ProviderManager(
+                    DaoAuthenticationProvider(
+                        InMemoryUserDetailsManager(
+                            User
+                                .withUsername(actuatorProperties.username)
+                                .password(passwordEncoder().encode(actuatorProperties.password))
+                                .authorities("SCRAPE")
+                                .build(),
+                        ),
+                    ).apply { setPasswordEncoder(passwordEncoder()) },
+                ),
+            ).build()
+
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
         http
@@ -70,9 +110,6 @@ class SecurityConfig(
                         "/v3/api-docs/**",
                         "/ws",
                         "/ws/**",
-                        // ponytail: prometheus scrape is unauthenticated, restrict to infra network or add auth
-                        "/actuator/health/**",
-                        "/actuator/prometheus",
                     ).permitAll()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.anyRequest().authenticated()
