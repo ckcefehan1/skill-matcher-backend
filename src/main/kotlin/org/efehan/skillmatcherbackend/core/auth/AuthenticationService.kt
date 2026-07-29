@@ -11,6 +11,7 @@ import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.BadCredentialsException
@@ -187,16 +188,21 @@ class AuthenticationService(
         sessionRegistry.disconnect(userId)
     }
 
+    // Runs in its own transaction: login() rethrows BadCredentialsException right after,
+    // which would otherwise roll the counter back and leave the lockout unreachable.
     private fun registerFailedLogin(
         user: UserModel,
         now: Instant,
     ) {
-        user.failedLoginAttempts += 1
-        if (user.failedLoginAttempts >= loginLockoutProperties.maxFailedAttempts) {
-            user.lockedUntil = now.plus(Duration.ofMinutes(loginLockoutProperties.lockoutDurationMinutes))
-            user.failedLoginAttempts = 0
+        requiresNewTx.executeWithoutResult {
+            val fresh = userRepository.findByIdOrNull(user.id) ?: return@executeWithoutResult
+            fresh.failedLoginAttempts += 1
+            if (fresh.failedLoginAttempts >= loginLockoutProperties.maxFailedAttempts) {
+                fresh.lockedUntil = now.plus(Duration.ofMinutes(loginLockoutProperties.lockoutDurationMinutes))
+                fresh.failedLoginAttempts = 0
+            }
+            userRepository.save(fresh)
         }
-        userRepository.save(user)
     }
 
     private fun rotateRefreshToken(oldToken: RefreshTokenModel): String {

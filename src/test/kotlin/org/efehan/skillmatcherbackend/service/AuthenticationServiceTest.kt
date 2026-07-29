@@ -36,6 +36,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("Authentication Service Unit Tests")
@@ -252,6 +253,7 @@ class AuthenticationServiceTest {
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
@@ -273,6 +275,7 @@ class AuthenticationServiceTest {
         user.failedLoginAttempts = 4
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
@@ -358,6 +361,7 @@ class AuthenticationServiceTest {
         val user = UserBuilder().build(email = EMAIL, firstName = "Test", lastName = "User", role = RoleModel("ADMIN", null))
 
         every { userRepository.findByEmail(EMAIL) } returns user
+        every { userRepository.findById(user.id) } returns Optional.of(user)
         every { authenticationManager.authenticate(any()) } throws BadCredentialsException("Bad credentials")
         every { userRepository.save(any()) } returnsArgument 0
 
