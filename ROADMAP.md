@@ -43,7 +43,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 
 - Error-Tracking (Sentry o.ä.): bewusst rausgelassen — ohne echten DSN nur tote Dependency. Einrichten wenn Account existiert; Achtung: `sentry-spring-boot-4-starter` nötig, Jakarta-Variante inkompatibel mit Spring Boot 4.
 - Auth auf `/actuator/prometheus`: aktuell unauthenticated (ponytail-Kommentar in `SecurityConfig`) — gehört zu Punkt 7.
-- Alerting (Alertmanager, Regeln): nicht angefasst.
+- Alerting: Regeln für die DLQs und den Chat-Queue-Backlog existieren (Punkt 12), ein Alertmanager, der sie irgendwohin zustellt, fehlt noch.
 
 ## 6. Token-Härtung ✅ umgesetzt
 
@@ -58,7 +58,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 
 **Nicht gemacht (offen):**
 
-- WebSocket-Auth per Cookie/Ticket: Frontend nutzt noch kein STOMP. Bei Adoption prüfen — STOMP-CONNECT kann keine Browser-Cookies setzen, aktuell läuft es über Bearer im Header (Frontend hat keinen Zugriff mehr auf Token → Ticket-Endpoint nötig).
+- ~~WebSocket-Auth per Cookie/Ticket~~ → in Punkt 12 umgesetzt (`WsTicketService`, `POST /api/auth/ws-ticket`).
 - ~~Bekannter Tradeoff: zwei Tabs, die exakt gleichzeitig refreshen, loggen sich gegenseitig aus~~ → gelöst via Web Locks (`navigator.locks.request('auth-refresh')` im axios-Refresh-Pfad): Cross-Tab-Single-Flight, zweiter Tab sendet frisches Cookie statt stalem Token.
 
 ## 7. Weitere Security
@@ -71,7 +71,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 ## 8. Tests
 
 - E2E mit Playwright: Kernflows (Login → Bewerbung → Annahme → Mitglied).
-- Testcontainers für Integrationstests gegen echte Postgres/RabbitMQ.
+- ~~Testcontainers für Integrationstests gegen echte Postgres/RabbitMQ.~~ ✅ Postgres durchgängig, RabbitMQ in `ChatRabbitIT`.
 - Component-Tests für Matching-Logik im Frontend.
 
 ## 9. Datenbank / Suche
@@ -81,7 +81,7 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 
 ## 10. Features
 
-- In-App-Notifications (Glocke im UI) — guter zweiter RabbitMQ-Konsument.
+- ~~In-App-Notifications (Glocke im UI) — guter zweiter RabbitMQ-Konsument.~~ → Punkt 12.
 - Datei-Upload: Avatar, evtl. CV.
 - DSGVO: Account-Löschung, Datenexport — Pflicht bei echten Usern.
 - i18n falls Mehrsprachigkeit geplant.
@@ -91,12 +91,40 @@ Geplante Verbesserungen, sortiert nach empfohlener Reihenfolge (Preis/Nutzen).
 - README mit Setup-Anleitung (Backend + Frontend + Secrets).
 - ARCHITECTURE.md: Technologie-Begründungen.
 
+## 12. Chat + In-App-Notifications ✅ umgesetzt (Branch `feature/chat-websocket-notifications`)
+
+**Gemacht:**
+
+- **Chat über STOMP**: `/ws`-Endpoint, SimpleBroker auf `/queue`, App-Prefix `/app`, User-Prefix `/user`. Konversationen, Nachrichten, Typing-Indicator, Read-Receipts, Presence.
+- **WS-Auth per Ticket**: `POST /api/auth/ws-ticket` gibt ein Einmal-Ticket (60s) aus, weil das JS den httpOnly-Cookie nicht sieht und STOMP-CONNECT keine Cookies setzen kann. `WebSocketAuthInterceptor` akzeptiert Ticket oder Bearer.
+- **Subscribe/Send-Autorisierung** (Security-Fix, war ausnutzbar): SUBSCRIBE wird gegen eine exakte Allowlist geprüft, SEND muss auf `/app/` zeigen. Der SimpleBroker matcht Subscriptions mit einem `AntPathMatcher` — ein ungeprüftes `/queue/**` matchte vorher die übersetzten User-Destinations *aller* Sessions und lieferte fremde Nachrichten und Notifications aus. `/topic` ist aus dem Broker raus (unbenutzte Angriffsfläche).
+- **Session-Invalidierung**: `WebSocketSessionRegistry` schließt offene STOMP-Sessions bei Logout, Passwortwechsel und Deaktivierung durch den Admin. Vorher überlebte eine einmal authentifizierte Session beliebig lange.
+- **Notifications**: `NotificationModel` + `/api/notifications` (Liste, Unread-Count, Read-Markierung), Push über `/user/queue/notifications`. Unique-Constraint `(user, type, reference_id)` dedupliziert At-least-once-Zustellung. Index `(user_id, created_date)` für die Listenabfrage.
+- **RabbitMQ als zweiter Konsument**: `chat.events`-Queue mit Retry und DLQ, Publish erst nach Commit. Gemeinsame Beans (Exchange, Converter, Template, Listener-Factory) liegen jetzt in `RabbitCommonConfig`, Mail und Chat deklarieren nur noch Queue/DLQ/Binding.
+- **Logische Type-IDs auf der Wire** (`chat.message.created` statt FQCN): ein Paket-Rename oder ein Rolling Deploy mit zwei Versionen hätte sonst alle in-flight Messages in die DLQ geschoben.
+- **DLQ-Alerting**: Prometheus scrapt `rabbitmq:15692`, Regeln in `docker/prometheus/rules.yml` — `DeadLetterQueueNotEmpty` (beide DLQs) und `ChatQueueBacklog`.
+- **Rate-Limit** auf `/api/auth/ws-ticket` (30/min) — der Endpoint gibt Credentials aus und lag vorher trotz `/api/auth/`-Prefix außerhalb des Filters.
+- **Chat-Partner-Suche**: Mindestlänge 2, Matching nur noch auf Vor-/Nachname. Das Matching auf `email` ohne Rückgabe der Adresse machte den Endpoint zum Enumeration-Orakel für beliebige Mailadressen.
+- **Periodische Session-Revalidierung**: `WebSocketSessionRevalidator` prüft alle 5 Minuten (`websocket.session-revalidation-interval`) offene STOMP-Sessions gegen die DB und trennt sie bei Deaktivierung, Rollenwechsel oder gelöschtem User — der `SecurityUser` ist beim CONNECT eingefroren, ein Rollenwechsel würde sonst bis zum Verbindungsabbruch gelten. Gesperrte Accounts (`lockedUntil`) bleiben bewusst verbunden, sonst wäre der Login-Lockout ein DoS gegen den Sitzungsinhaber. Der Ablauf des 15-Minuten-Access-Tokens beendet die Session weiterhin nicht — die Verbindung hängt am Refresh-Lebenszyklus, nicht am Token.
+- **Kein Catch auf `DataIntegrityViolationException`** in `ChatService.createConversation`: bei entity-assigned IDs ist `save()` ein `persist()`, der INSERT fällt erst beim Flush an — also nach dem Catch, der den Race dadurch ungebremst durchließ (gleicher Defekt wie zuvor in `NotificationService`). Stattdessen Verlass auf `uq_conversations_user_pair` plus Rollback/Retry.
+- **Frontend** (eigenes Repo, `feature/chat-ui-notifications`): `/chat` mit Unterhaltungsliste, Nachrichtenfenster, History-Paging, Tippanzeige, Lesebestätigungen und Presence, dazu die Notification-Glocke. Ein einzelner STOMP-Client abonniert exakt die sechs erlaubten Destinations — eine siebte schließt die Session, ohne dass der Client eine Fehlermeldung bekommt. Er trennt sich, sobald der Auth-Store den User verliert: sonst versuchte er alle 5 Sekunden einen Reconnect und feuerte dabei je ein `ws-ticket` plus `refresh`, was das 30/min-Limit des Ticket-Endpoints binnen einer Minute erreicht hätte.
+- **Tests**: `ChatRabbitIT` fährt einen RabbitMQ-Testcontainer hoch und prüft einen echten Publish-Consume-Roundtrip inkl. DLQ-Tiefe — der `test`-Profil-Default schaltet Rabbit ab, wodurch Config, Publisher, Listener und Serialisierung vorher komplett unausgeführt blieben (JaCoCo bleibt dabei grün, weil die Klassen nicht mal geladen werden — derselbe blinde Fleck existierte schon beim Mail-Teil). `WebSocketSubscriptionAuthIT` deckt den Leak oben ab.
+
+**Nicht gemacht (offen):**
+
+- **Multi-Instanz**: `chat.events` ist eine geteilte Work-Queue — bei zwei Instanzen landet ein Event auf genau einer, während die WebSocket-Session des Empfängers an einer anderen hängen kann. Der SimpleBroker pusht nur an lokale Sessions, also verschwinden ~50% der Pushes. Der Nutzen der Queue ist heute allein der Notification-Insert außerhalb des Request-Pfads plus Retry/DLQ. Upgrade-Pfad: exklusive Per-Instanz-Queue (Fanout) neben der durablen Work-Queue, oder `enableStompBrokerRelay` statt SimpleBroker. `PresenceService` und `WsTicketService` sind ohnehin in-memory und bräuchten dieselbe Behandlung (→ Redis, siehe unten).
+- **Publish-Verlust nach Commit**: ist der Broker beim `afterCommit`-Publish unten, liegt die Nachricht in der DB und die Notification entsteht nie. Bewusster Tradeoff gegen Phantom-Events bei Rollback (`ponytail:`-Kommentar auf `RabbitChatEventPublisher.send`). Richtige Lösung wäre ein transaktionaler Outbox.
+- **DLQ hat weiterhin keinen Konsumenten** — nur den Alert. Reicht, solange jemand auf den Alert schaut; Replay-Mechanismus bei Bedarf.
+- **Volltextsuche** für die Chat-Partner-Suche (aktuell `LIKE`) — gehört zu Punkt 9.
+- **Review-Restposten ohne eigenen Punkt**: `searchByRole` (Admin-/Matching-Suche) matcht weiterhin auf `LOWER(u.email)`. Nicht Teil des Chat-Reviews und dort liefert die Antwort die Adresse ohnehin mit, also kein Orakel — aber dieselbe Konstruktion, die bei `searchChatPartners` zum Problem wurde. Beim Volltextsuche-Umbau mit anfassen.
+
 ## Bewusst verschoben ("add when", nicht "add now")
 
 | Thema | Wann |
 |---|---|
-| Redis | Mehrere Backend-Instanzen, verteilte Rate-Limits/Sessions |
+| Redis | Mehrere Backend-Instanzen, verteilte Rate-Limits/Sessions, Presence und WS-Tickets |
 | Circuit Breaker (Resilience4j) | Externe HTTP-Calls (z.B. HaveIBeenPwned, KI-Matching) |
 | 2FA | Nach Token-Härtung |
 | Kubernetes | Wenn Compose an Grenzen stößt |
-| WebSocket-Auth per Ticket-Endpoint | Sobald Frontend STOMP nutzt (JS sieht httpOnly-Cookie nicht) |
+| STOMP-Broker-Relay statt SimpleBroker | Sobald mehr als eine Backend-Instanz läuft (Punkt 12) |
+| Transaktionaler Outbox | Wenn verlorene Notifications bei Broker-Ausfall wehtun (Punkt 12) |

@@ -31,6 +31,41 @@ class ChatController(
     private val chatService: ChatService,
     private val presenceService: PresenceService,
 ) {
+    @Operation(
+        summary = "Search chat partners",
+        description = "Searches enabled users by name or email. Any authenticated user may search for chat partners.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Users retrieved."),
+            ApiResponse(
+                responseCode = "401",
+                description = "Not authenticated.",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = GlobalErrorCodeResponse::class),
+                    ),
+                ],
+            ),
+        ],
+    )
+    @GetMapping("/users/search")
+    @ResponseStatus(HttpStatus.OK)
+    fun searchChatPartners(
+        @AuthenticationPrincipal securityUser: SecurityUser,
+        @RequestParam q: String,
+        @RequestParam(defaultValue = "10") limit: Int,
+    ): List<ChatUserResponse> =
+        chatService.searchChatPartners(securityUser.user, q, limit).map {
+            ChatUserResponse(
+                id = it.id,
+                firstName = it.firstName ?: "",
+                lastName = it.lastName ?: "",
+                online = presenceService.isOnline(it.id),
+            )
+        }
+
     @Operation(summary = "Get my conversations", description = "Returns all conversations for the authenticated user.")
     @ApiResponses(
         value = [

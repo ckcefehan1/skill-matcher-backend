@@ -4,6 +4,7 @@ import org.efehan.skillmatcherbackend.TestcontainersConfiguration
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
+import org.efehan.skillmatcherbackend.persistence.NotificationRepository
 import org.efehan.skillmatcherbackend.persistence.PasswordResetTokenRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
@@ -80,6 +81,9 @@ abstract class AbstractWebSocketIntegrationTest {
     @Autowired
     protected lateinit var conversationRepository: ConversationRepository
 
+    @Autowired
+    protected lateinit var notificationRepository: NotificationRepository
+
     protected lateinit var stompClient: WebSocketStompClient
 
     private val sessions = mutableListOf<StompSession>()
@@ -99,6 +103,7 @@ abstract class AbstractWebSocketIntegrationTest {
     }
 
     protected fun cleanUp() {
+        notificationRepository.deleteAll()
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()
         projectMemberRepository.deleteAll()
@@ -115,9 +120,19 @@ abstract class AbstractWebSocketIntegrationTest {
     }
 
     protected fun connectWithAuth(token: String): StompSession {
-        val url = "ws://localhost:$port/ws"
         val connectHeaders = StompHeaders()
         connectHeaders["Authorization"] = "Bearer $token"
+        return connect(connectHeaders)
+    }
+
+    protected fun connectWithTicket(ticket: String): StompSession {
+        val connectHeaders = StompHeaders()
+        connectHeaders["ticket"] = ticket
+        return connect(connectHeaders)
+    }
+
+    private fun connect(connectHeaders: StompHeaders): StompSession {
+        val url = "ws://localhost:$port/ws"
 
         val session =
             stompClient

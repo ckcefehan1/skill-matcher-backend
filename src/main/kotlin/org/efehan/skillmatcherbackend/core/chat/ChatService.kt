@@ -9,7 +9,6 @@ import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -24,8 +23,20 @@ class ChatService(
     private val messageRepo: ChatMessageRepository,
     private val userRepo: UserRepository,
     private val messagingTemplate: SimpMessagingTemplate,
+    private val chatEventPublisher: ChatEventPublisher,
 ) {
     fun getConversations(user: UserModel): List<ConversationModel> = conversationRepo.findByUser(user)
+
+    // the endpoint returns no email, so matching on it would turn this into an address oracle
+    fun searchChatPartners(
+        user: UserModel,
+        q: String,
+        limit: Int,
+    ): List<UserModel> {
+        val term = q.trim()
+        if (term.length < MIN_SEARCH_TERM_LENGTH) return emptyList()
+        return userRepo.searchChatPartners(term, user.id, PageRequest.of(0, limit.coerceIn(1, 50)))
+    }
 
     fun getLastMessages(conversations: List<ConversationModel>): Map<String, ChatMessageModel> {
         if (conversations.isEmpty()) return emptyMap()
@@ -91,12 +102,11 @@ class ChatService(
         val userOne = if (user.id < partner.id) user else partner
         val userTwo = if (user.id < partner.id) partner else user
 
-        return try {
-            val conversation = conversationRepo.save(ConversationModel(userOne = userOne, userTwo = userTwo))
-            conversation to true
-        } catch (_: DataIntegrityViolationException) {
-            conversationRepo.findByUsers(user, partner)!! to false
-        }
+        // A simultaneous create by the other party is left to uq_conversations_user_pair:
+        // the violation rolls this transaction back and the retry finds the row above.
+        // Catching it here cannot work — the id is entity-assigned, so the INSERT is
+        // deferred to flush time and never throws inside the call.
+        return conversationRepo.save(ConversationModel(userOne = userOne, userTwo = userTwo)) to true
     }
 
     fun sendMessage(
@@ -138,9 +148,13 @@ class ChatService(
         conversation.lastMessageAt = sentAt
 
         val recipient = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
-        val response = message.toDTO()
-        messagingTemplate.convertAndSendToUser(recipient.id, "/queue/messages", response)
-        messagingTemplate.convertAndSendToUser(user.id, "/queue/messages", response)
+        chatEventPublisher.publish(
+            ChatEvent.MessageCreated(
+                message = message.toDTO(),
+                recipientId = recipient.id,
+                senderDisplayName = listOfNotNull(user.firstName, user.lastName).joinToString(" ").ifBlank { user.email },
+            ),
+        )
 
         return message
     }
@@ -184,7 +198,7 @@ class ChatService(
         if (updated > 0) {
             val partner = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
             val receipt = ReadReceiptResponse(conversationId = conversation.id, readBy = user.id, readAt = readAt)
-            messagingTemplate.convertAndSendToUser(partner.id, "/queue/read-receipts", receipt)
+            chatEventPublisher.publish(ChatEvent.ConversationRead(receipt = receipt, partnerId = partner.id))
         }
     }
 
@@ -213,6 +227,11 @@ class ChatService(
 
         val partner = if (conversation.userOne.id == user.id) conversation.userTwo else conversation.userOne
         val typing = TypingResponse(conversationId = conversation.id, userId = user.id)
+        // ponytail: typing stays a direct push — ephemeral, latency-critical, no durability needed
         messagingTemplate.convertAndSendToUser(partner.id, "/queue/typing", typing)
+    }
+
+    private companion object {
+        const val MIN_SEARCH_TERM_LENGTH = 2
     }
 }

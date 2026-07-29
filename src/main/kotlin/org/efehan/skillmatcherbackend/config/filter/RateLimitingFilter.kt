@@ -32,6 +32,7 @@ class RateLimitingFilter(
             Rule("/api/auth/password-reset", properties.passwordResetPerMinute),
             Rule("/api/auth/invitations", properties.invitationPerMinute),
             Rule("/api/auth/refresh", properties.refreshPerMinute),
+            Rule("/api/auth/ws-ticket", properties.wsTicketPerMinute),
         )
     }
 

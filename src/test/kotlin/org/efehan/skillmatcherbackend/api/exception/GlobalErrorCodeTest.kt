@@ -79,6 +79,9 @@ class GlobalErrorCodeTest {
     val expectedConversationNotFoundErrorCode = "CONVERSATION_NOT_FOUND"
     val expectedConversationAccessDeniedErrorCode = "CONVERSATION_ACCESS_DENIED"
 
+    // Notifications
+    val expectedNotificationNotFoundErrorCode = "NOTIFICATION_NOT_FOUND"
+
     // General
     val expectedRateLimitExceededErrorCode = "RATE_LIMIT_EXCEEDED"
     val expectedInternalServerErrorCode = "INTERNAL_SERVER_ERROR"
@@ -157,11 +160,14 @@ class GlobalErrorCodeTest {
         assertThat(expectedConversationNotFoundErrorCode).isEqualTo(GlobalErrorCode.CONVERSATION_NOT_FOUND.name)
         assertThat(expectedConversationAccessDeniedErrorCode).isEqualTo(GlobalErrorCode.CONVERSATION_ACCESS_DENIED.name)
 
+        // Notifications
+        assertThat(expectedNotificationNotFoundErrorCode).isEqualTo(GlobalErrorCode.NOTIFICATION_NOT_FOUND.name)
+
         // General
         assertThat(expectedRateLimitExceededErrorCode).isEqualTo(GlobalErrorCode.RATE_LIMIT_EXCEEDED.name)
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(49)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(50)
     }
 
     @Test

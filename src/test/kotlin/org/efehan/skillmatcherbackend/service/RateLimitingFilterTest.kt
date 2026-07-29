@@ -22,6 +22,7 @@ class RateLimitingFilterTest {
             passwordResetPerMinute = 5,
             invitationPerMinute = 5,
             refreshPerMinute = 5,
+            wsTicketPerMinute = 5,
         )
     private lateinit var filter: RateLimitingFilter
 

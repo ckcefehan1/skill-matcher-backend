@@ -10,6 +10,7 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.admin.AdminUserService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
@@ -43,6 +44,9 @@ class AdminUserServiceTest {
 
     @MockK
     private lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    @MockK(relaxed = true)
+    private lateinit var sessionRegistry: WebSocketSessionRegistry
 
     @InjectMockKs
     private lateinit var adminUserService: AdminUserService

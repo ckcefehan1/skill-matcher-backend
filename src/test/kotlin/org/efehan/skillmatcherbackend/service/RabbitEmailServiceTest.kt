@@ -28,6 +28,8 @@ class RabbitEmailServiceTest {
             mailQueue = "mail.send",
             mailDlq = "mail.send.dlq",
             mailRoutingKey = "mail.send",
+            chatQueue = "chat.events",
+            chatDlq = "chat.events.dlq",
             retry =
                 RabbitMQProperties.Retry(
                     maxRetries = 2,

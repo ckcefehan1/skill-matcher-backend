@@ -102,4 +102,21 @@ interface UserRepository : JpaRepository<UserModel, String> {
         q: String,
         pageable: Pageable,
     ): Page<UserModel>
+
+    @Query(
+        """
+        SELECT u FROM UserModel u
+        WHERE u.isEnabled = true AND u.id <> :excludedId
+        AND (
+            LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+            OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
+        )
+        ORDER BY u.lastName, u.firstName
+        """,
+    )
+    fun searchChatPartners(
+        q: String,
+        excludedId: String,
+        pageable: Pageable,
+    ): List<UserModel>
 }

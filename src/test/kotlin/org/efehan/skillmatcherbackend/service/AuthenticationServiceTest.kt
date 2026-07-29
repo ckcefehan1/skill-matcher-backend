@@ -9,6 +9,7 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
 import org.efehan.skillmatcherbackend.core.auth.AuthenticationService
@@ -62,6 +63,9 @@ class AuthenticationServiceTest {
 
     @MockK
     private lateinit var passwordValidationService: PasswordValidationService
+
+    @MockK(relaxed = true)
+    private lateinit var sessionRegistry: WebSocketSessionRegistry
 
     @MockK(relaxed = true)
     private lateinit var transactionManager: org.springframework.transaction.PlatformTransactionManager

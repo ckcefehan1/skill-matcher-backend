@@ -1,0 +1,20 @@
+groups:
+  - name: rabbitmq-dlq
+    rules:
+      # Nothing consumes the dead letter queues, so depth > 0 means messages are
+      # stuck and someone has to look. Cheaper than any automatic recovery logic.
+      - alert: DeadLetterQueueNotEmpty
+        expr: rabbitmq_queue_messages{queue=~".*\\.dlq"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dead letter queue {{ $labels.queue }} holds {{ $value }} message(s)"
+
+      - alert: ChatQueueBacklog
+        expr: rabbitmq_queue_messages_ready{queue="chat.events"} > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "chat.events backlog: consumer is down or too slow"
