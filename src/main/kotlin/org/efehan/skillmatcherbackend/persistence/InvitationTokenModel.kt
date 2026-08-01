@@ -32,6 +32,13 @@ class InvitationTokenModel(
     val expiresAt: Instant,
     @Column(name = "used", nullable = false)
     var used: Boolean = false,
+    // HMAC of the 6-digit self-registration code. Null on employee invitations —
+    // that null is what distinguishes the two row types.
+    @Column(name = "code_hash")
+    var codeHash: String? = null,
+    // failed verify attempts against this row, capped in InvitationService
+    @Column(name = "attempts", nullable = false)
+    var attempts: Int = 0,
 ) : TenantAwareEntity() {
     fun toDTO() =
         ValidateInvitationResponse(
@@ -43,6 +50,8 @@ class InvitationTokenModel(
 @Repository
 interface InvitationTokenRepository : JpaRepository<InvitationTokenModel, String> {
     fun findByTokenHash(tokenHash: String): InvitationTokenModel?
+
+    fun findFirstByUserAndCodeHashNotNullOrderByCreatedDateDesc(user: UserModel): InvitationTokenModel?
 
     fun deleteByUser(user: UserModel)
 }
