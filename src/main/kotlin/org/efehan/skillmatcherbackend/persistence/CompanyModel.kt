@@ -5,6 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import org.efehan.skillmatcherbackend.core.company.CompanyResponse
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
@@ -30,7 +31,25 @@ class CompanyModel(
     var website: String? = null,
     @Column(name = "is_enabled", nullable = false)
     var isEnabled: Boolean = false,
-) : AuditingBaseEntity()
+    /** Self-registered companies start disabled and are activated by invite acceptance. */
+    @Column(name = "self_registered", nullable = false)
+    var selfRegistered: Boolean = false,
+) : AuditingBaseEntity() {
+    fun toDTO() =
+        CompanyResponse(
+            id = id,
+            name = name,
+            street = street,
+            zip = zip,
+            city = city,
+            country = country,
+            industry = industry,
+            companySize = companySize?.name,
+            website = website,
+            isEnabled = isEnabled,
+            createdDate = createdDate,
+        )
+}
 
 enum class CompanySize {
     SIZE_1_10,

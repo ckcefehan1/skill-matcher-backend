@@ -32,6 +32,7 @@ enum class GlobalErrorCode(
     USER_SKILL_NOT_FOUND("User skill could not be found."),
     CONVERSATION_NOT_FOUND("Conversation could not be found."),
     NOTIFICATION_NOT_FOUND("Notification could not be found."),
+    COMPANY_NOT_FOUND("Company could not be found."),
 
     // Matching
     PROJECT_SKILL_NOT_FOUND("Project skill could not be found."),

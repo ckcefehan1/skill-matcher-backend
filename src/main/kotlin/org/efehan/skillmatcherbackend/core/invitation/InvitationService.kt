@@ -52,7 +52,8 @@ class InvitationService(
                 tokenHash = tokenHash,
                 user = user,
                 expiresAt = expiresAt,
-            ),
+                // explicit: callers may run in root context (company registration, superadmin)
+            ).apply { companyId = user.companyId },
         )
 
         emailService.sendInvitationEmail(user, rawToken, invitationProperties.tokenExpirationHours)
