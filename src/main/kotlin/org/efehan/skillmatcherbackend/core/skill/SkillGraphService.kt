@@ -83,7 +83,7 @@ class SkillGraphService(
     fun deriveCoOccurrence() {
         if (!properties.derivationEnabled) return
 
-        // the skill graph is global (decision 1 in MULTI_TENANCY.md), so co-occurrence
+        // the skill graph is global, so co-occurrence
         // deliberately aggregates user_skills across tenants — declared root context
         TenantContext.runAsRoot {
             val coOccurrences =
