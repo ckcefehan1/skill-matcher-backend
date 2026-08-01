@@ -8,6 +8,7 @@ import jakarta.persistence.Table
 import org.efehan.skillmatcherbackend.core.company.CompanyResponse
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
+import java.time.Instant
 
 @Entity
 @Table(name = "companies")
@@ -62,4 +63,6 @@ enum class CompanySize {
 @Repository
 interface CompanyRepository : JpaRepository<CompanyModel, String> {
     fun existsByName(name: String): Boolean
+
+    fun findBySelfRegisteredTrueAndIsEnabledFalseAndCreatedDateBefore(cutoff: Instant): List<CompanyModel>
 }

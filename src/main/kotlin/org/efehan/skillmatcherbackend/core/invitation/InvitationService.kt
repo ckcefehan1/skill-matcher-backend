@@ -2,12 +2,16 @@ package org.efehan.skillmatcherbackend.core.invitation
 
 import org.efehan.skillmatcherbackend.config.properties.InvitationProperties
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
+import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.auth.AuthResponse
 import org.efehan.skillmatcherbackend.core.auth.AuthTokens
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.AuditAction
+import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
@@ -17,6 +21,7 @@ import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
+import org.springframework.cache.CacheManager
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -39,6 +44,9 @@ class InvitationService(
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
     private val clock: Clock,
+    private val companyRepository: CompanyRepository,
+    private val cacheManager: CacheManager,
+    private val auditService: AuditService,
 ) {
     private val logger = LoggerFactory.getLogger(InvitationService::class.java)
 
@@ -130,6 +138,7 @@ class InvitationService(
         user.lastName = lastName
         user.isEnabled = true
         userRepository.save(user)
+        activateSelfRegisteredCompany(user)
 
         invitation.used = true
         invitationTokenRepository.save(invitation)
@@ -156,6 +165,28 @@ class InvitationService(
                     expiresIn = jwtProperties.accessTokenExpiration,
                     user = user.toAuthDTO(),
                 ),
+        )
+    }
+
+    /**
+     * Invite acceptance doubles as the email-ownership proof for self-registered
+     * companies: this is the moment their is_enabled flips. Only self-registered
+     * ones — a company disabled by the platform stays disabled.
+     */
+    private fun activateSelfRegisteredCompany(user: UserModel) {
+        val companyId = user.companyId ?: return
+        val company = companyRepository.findById(companyId).orElse(null) ?: return
+        if (!company.selfRegistered || company.isEnabled) return
+
+        company.isEnabled = true
+        companyRepository.save(company)
+        cacheManager.getCache(CacheConfig.COMPANY_ENABLED)?.evict(companyId)
+        auditService.record(
+            AuditAction.COMPANY_ENABLED,
+            actor = user,
+            targetId = company.id,
+            detail = "name=${company.name}, via invitation acceptance",
+            companyId = company.id,
         )
     }
 

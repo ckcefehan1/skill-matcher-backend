@@ -27,6 +27,7 @@ class AuditService(
         actor: UserModel? = currentUser(),
         targetId: String? = null,
         detail: String? = null,
+        companyId: String? = TenantContext.get(),
     ) {
         auditLogRepository.save(
             AuditLogModel(
@@ -35,7 +36,7 @@ class AuditService(
                 actorEmail = actor?.email,
                 targetId = targetId,
                 detail = detail,
-                companyId = TenantContext.get(),
+                companyId = companyId,
             ),
         )
     }

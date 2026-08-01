@@ -43,4 +43,6 @@ class InvitationTokenModel(
 @Repository
 interface InvitationTokenRepository : JpaRepository<InvitationTokenModel, String> {
     fun findByTokenHash(tokenHash: String): InvitationTokenModel?
+
+    fun deleteByUser(user: UserModel)
 }
