@@ -29,7 +29,7 @@ class InvitationTokenModel(
     @JoinColumn(name = "user_id", nullable = false)
     val user: UserModel,
     @Column(name = "expires_at", nullable = false)
-    val expiresAt: Instant,
+    var expiresAt: Instant,
     @Column(name = "used", nullable = false)
     var used: Boolean = false,
     // HMAC of the 6-digit self-registration code. Null on employee invitations —
