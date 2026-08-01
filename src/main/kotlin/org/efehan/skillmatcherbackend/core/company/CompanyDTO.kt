@@ -16,7 +16,9 @@ data class CompanyResponse(
     val industry: String?,
     val companySize: String?,
     val website: String?,
-    val isEnabled: Boolean,
+    // not isEnabled: springdoc would name the schema property `enabled` while Jackson
+    // still writes `isEnabled`, and the generated client reads the field that never arrives
+    val enabled: Boolean,
     val createdDate: Instant?,
 )
 

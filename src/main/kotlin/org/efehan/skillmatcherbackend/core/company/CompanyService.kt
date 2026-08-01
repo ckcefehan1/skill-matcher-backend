@@ -5,6 +5,7 @@ import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationAcceptedEvent
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
@@ -48,8 +49,9 @@ class CompanyService(
     @Cacheable(cacheNames = [CacheConfig.COMPANY_ENABLED], key = "#companyId")
     fun isEnabled(companyId: String): Boolean = companyRepository.findById(companyId).map { it.isEnabled }.orElse(false)
 
+    /** The platform anchor is not a customer tenant — it only holds the SUPERADMIN accounts. */
     @Transactional(readOnly = true)
-    fun list(): List<CompanyModel> = companyRepository.findAll()
+    fun list(): List<CompanyModel> = companyRepository.findAll().filter { it.id != PLATFORM_COMPANY_ID }
 
     /**
      * The one company-provisioning path, used by the superadmin API and public

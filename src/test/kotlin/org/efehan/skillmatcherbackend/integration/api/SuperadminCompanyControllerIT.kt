@@ -4,7 +4,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.company.CreateCompanyRequest
 import org.efehan.skillmatcherbackend.core.company.UpdateCompanyStatusRequest
+import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.fixtures.builder.CompanyBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -77,7 +79,7 @@ class SuperadminCompanyControllerIT : AbstractIntegrationTest() {
             }.andExpect {
                 status { isCreated() }
                 jsonPath("$.name") { value("Neue GmbH") }
-                jsonPath("$.isEnabled") { value(true) }
+                jsonPath("$.enabled") { value(true) }
             }
 
         // then: company, disabled admin and invitation token exist, all wired to the new tenant
@@ -112,9 +114,13 @@ class SuperadminCompanyControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `lists all companies`() {
-        // given
+    fun `lists all companies except the platform anchor`() {
+        // given: the anchor holding the superadmin accounts is no customer tenant —
+        // listing it would let a superadmin disable their own login
         val token = jwtService.generateAccessToken(createSuperadmin())
+        companyRepository.save(
+            CompanyBuilder().build(name = "Platform").apply { id = PLATFORM_COMPANY_ID },
+        )
 
         // when/then
         mockMvc
@@ -123,6 +129,7 @@ class SuperadminCompanyControllerIT : AbstractIntegrationTest() {
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
+                jsonPath("$[?(@.id == '$PLATFORM_COMPANY_ID')]") { isEmpty() }
             }
     }
 

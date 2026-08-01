@@ -37,7 +37,7 @@ class CompanyRegistrationController(
     )
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    fun register(
+    fun registerCompany(
         @Valid @RequestBody request: RegisterCompanyRequest,
     ) {
         // on-prem has exactly one company — self-registration is pointless and attack surface

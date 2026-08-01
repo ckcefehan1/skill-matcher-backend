@@ -10,6 +10,7 @@ import org.efehan.skillmatcherbackend.core.company.CompanyService
 import org.efehan.skillmatcherbackend.core.company.CreateCompanyRequest
 import org.efehan.skillmatcherbackend.core.company.UpdateCompanyStatusRequest
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -21,7 +22,8 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/superadmin/companies")
+// without produces, springdoc emits */* and the generated client types every response as Blob
+@RequestMapping("/api/superadmin/companies", produces = [MediaType.APPLICATION_JSON_VALUE])
 @PreAuthorize("hasRole('SUPERADMIN')")
 @Tag(name = "Superadmin", description = "Platform-level company management. SUPERADMIN role required.")
 class SuperadminCompanyController(

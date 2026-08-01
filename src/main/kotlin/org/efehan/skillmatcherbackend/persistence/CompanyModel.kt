@@ -48,7 +48,7 @@ class CompanyModel(
             industry = industry,
             companySize = companySize?.name,
             website = website,
-            isEnabled = isEnabled,
+            enabled = isEnabled,
             createdDate = createdDate,
         )
 }
