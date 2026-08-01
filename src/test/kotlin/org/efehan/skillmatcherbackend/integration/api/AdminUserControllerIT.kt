@@ -82,7 +82,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `should return 404 when role does not exist`() {
+    fun `should return 403 when role is not assignable`() {
         // given
         val role = roleRepository.save(RoleModel("ADMIN", null))
         val admin =
@@ -104,8 +104,35 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
-                status { isNotFound() }
-                jsonPath("$.errorCode") { value("ROLE_NOT_FOUND") }
+                status { isForbidden() }
+            }
+    }
+
+    @Test
+    fun `should return 403 when admin tries to assign SUPERADMIN`() {
+        // given: the privilege escalation from the review — must stay closed
+        val role = roleRepository.save(RoleModel("ADMIN", null))
+        roleRepository.save(RoleModel("SUPERADMIN", null))
+        val admin =
+            userRepository.save(
+                UserModel(
+                    email = "admin@firma.de",
+                    passwordHash = passwordEncoder.encode("Admin-Password1!"),
+                    firstName = "Admin",
+                    lastName = "User",
+                    role = role,
+                ).apply { isEnabled = true },
+            )
+        val token = jwtService.generateAccessToken(admin)
+        val request = AdminUserFixtures.buildUpdateUserRoleRequest(role = "SUPERADMIN")
+
+        // when & then: even on their own user id
+        mockMvc
+            .patch("/api/admin/users/${admin.id}/role") {
+                withAuth(token)
+                withBodyRequest(request)
+            }.andExpect {
+                status { isForbidden() }
             }
     }
 
@@ -526,8 +553,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
-                status { isNotFound() }
-                jsonPath("$.errorCode") { value("ROLE_NOT_FOUND") }
+                status { isForbidden() }
             }
     }
 

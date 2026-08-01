@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <!--
+      Step 3 of 3: NOT NULL + FK + company_id index on every tenant-scoped table.
+      audit_logs keeps company_id nullable (root contexts) and gets no FK —
+      zombie-company cleanup must not trip over it.
+    -->
+    <changeSet id="1775200000000-1" author="efehan">
+        <addNotNullConstraint tableName="users" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="projects" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="project_members" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="project_skills" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="project_applications" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="user_skills" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="user_availability" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="conversations" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="chat_messages" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="notifications" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="invitation_tokens" columnName="company_id" columnDataType="VARCHAR(255)"/>
+    </changeSet>
+    <changeSet id="1775200000000-2" author="efehan">
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="users" constraintName="FK_USERS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="projects" constraintName="FK_PROJECTS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="project_members" constraintName="FK_PROJECT_MEMBERS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="project_skills" constraintName="FK_PROJECT_SKILLS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="project_applications" constraintName="FK_PROJECT_APPLICATIONS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="user_skills" constraintName="FK_USER_SKILLS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="user_availability" constraintName="FK_USER_AVAILABILITY_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="conversations" constraintName="FK_CONVERSATIONS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="chat_messages" constraintName="FK_CHAT_MESSAGES_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="notifications" constraintName="FK_NOTIFICATIONS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="invitation_tokens" constraintName="FK_INVITATION_TOKENS_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+    </changeSet>
+    <changeSet id="1775200000000-3" author="efehan">
+        <createIndex tableName="users" indexName="idx_users_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="projects" indexName="idx_projects_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="project_members" indexName="idx_project_members_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="project_skills" indexName="idx_project_skills_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="project_applications" indexName="idx_project_applications_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="user_skills" indexName="idx_user_skills_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="user_availability" indexName="idx_user_availability_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="conversations" indexName="idx_conversations_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="chat_messages" indexName="idx_chat_messages_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="notifications" indexName="idx_notifications_company_id">
+            <column name="company_id"/>
+        </createIndex>
+        <createIndex tableName="invitation_tokens" indexName="idx_invitation_tokens_company_id">
+            <column name="company_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

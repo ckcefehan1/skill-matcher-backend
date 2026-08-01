@@ -31,7 +31,7 @@ class ProjectSkillModel(
     @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false)
     var priority: SkillPriority = SkillPriority.MUST_HAVE,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         ProjectSkillDto(
             id = id,

@@ -106,12 +106,14 @@ class SecurityConfig(
                         "/api/auth/invitations/validate",
                         "/api/auth/invitations/accept",
                         "/api/auth/password-reset/**",
+                        "/api/public/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/ws",
                         "/ws/**",
                     ).permitAll()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
+                it.requestMatchers("/api/superadmin/**").hasRole("SUPERADMIN")
                 it.anyRequest().authenticated()
             }.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)

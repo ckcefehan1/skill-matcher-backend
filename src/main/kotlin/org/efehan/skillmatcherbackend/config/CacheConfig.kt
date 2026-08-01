@@ -16,6 +16,7 @@ class CacheConfig {
         const val SKILL_CATALOG = "skillCatalog"
         const val MATCHING_CANDIDATES = "matchingCandidates"
         const val MATCHING_PROJECTS_FOR_USER = "matchingProjectsForUser"
+        const val COMPANY_ENABLED = "companyEnabled"
     }
 
     @Bean
@@ -24,6 +25,7 @@ class CacheConfig {
             registerCustomCache(SKILL_CATALOG, buildCache(properties.skillCatalogTtl, properties.skillCatalogMaxSize))
             registerCustomCache(MATCHING_CANDIDATES, buildCache(properties.matchingTtl, properties.matchingMaxSize))
             registerCustomCache(MATCHING_PROJECTS_FOR_USER, buildCache(properties.matchingTtl, properties.matchingMaxSize))
+            registerCustomCache(COMPANY_ENABLED, buildCache(properties.companyStatusTtl, properties.companyStatusMaxSize))
         }
 
     private fun buildCache(

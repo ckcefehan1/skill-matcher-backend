@@ -67,6 +67,9 @@ class InvitationServiceTest {
     @MockK
     private lateinit var clock: Clock
 
+    @MockK(relaxed = true)
+    private lateinit var eventPublisher: org.springframework.context.ApplicationEventPublisher
+
     @InjectMockKs
     private lateinit var invitationService: InvitationService
 

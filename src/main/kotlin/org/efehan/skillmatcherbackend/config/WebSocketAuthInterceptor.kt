@@ -4,14 +4,18 @@ import org.efehan.skillmatcherbackend.core.auth.CustomUserDetailsService
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.core.auth.WsTicketService
+import org.efehan.skillmatcherbackend.core.company.CompanyService
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.context.annotation.Configuration
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.MessageDeliveryException
+import org.springframework.messaging.MessageHandler
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.stomp.StompCommand
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
-import org.springframework.messaging.support.ChannelInterceptor
+import org.springframework.messaging.support.ExecutorChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
 
 @Configuration
@@ -19,7 +23,8 @@ class WebSocketAuthInterceptor(
     private val jwtService: JwtService,
     private val userDetailsService: CustomUserDetailsService,
     private val wsTicketService: WsTicketService,
-) : ChannelInterceptor {
+    private val companyService: CompanyService,
+) : ExecutorChannelInterceptor {
     override fun preSend(
         message: Message<*>,
         channel: MessageChannel,
@@ -35,24 +40,66 @@ class WebSocketAuthInterceptor(
         return message
     }
 
-    private fun authenticate(accessor: StompHeaderAccessor) {
-        val ticket = accessor.getFirstNativeHeader("ticket")?.ifBlank { null }
-        val bearer =
-            accessor
-                .getFirstNativeHeader("Authorization")
-                ?.removePrefix("Bearer ")
-                ?.ifBlank { null }
-
-        val userDetails =
-            when {
-                ticket != null -> resolveByTicket(ticket)
-                bearer != null -> resolveByJwt(bearer)
-                else -> throw MessageDeliveryException("Missing ticket or Authorization header")
-            }
-
-        if (!userDetails.isEnabled) {
-            throw MessageDeliveryException("User account is disabled")
+    /**
+     * preSend still runs on the receiving thread, but the @MessageMapping handler runs on the
+     * inbound channel's executor, so the tenant has to be bound here to reach the service call.
+     */
+    override fun beforeHandle(
+        message: Message<*>,
+        channel: MessageChannel,
+        handler: MessageHandler,
+    ): Message<*> {
+        val companyId =
+            (SimpMessageHeaderAccessor.getUser(message.headers) as? WebSocketPrincipal)
+                ?.securityUser
+                ?.companyId
+        if (companyId != null) {
+            TenantContext.set(companyId)
+        } else {
+            // unauthenticated STOMP frames (e.g. CONNECT before auth) never touch tenant data,
+            // but the resolver refuses unscoped access unless root is declared
+            TenantContext.allowRoot()
         }
+        return message
+    }
+
+    override fun afterMessageHandled(
+        message: Message<*>,
+        channel: MessageChannel,
+        handler: MessageHandler,
+        ex: Exception?,
+    ) {
+        TenantContext.clear()
+    }
+
+    private fun authenticate(accessor: StompHeaderAccessor) {
+        // CONNECT runs on the receiving thread with no tenant bound; user lookup by
+        // globally unique email/id and the company check are deliberately root-scoped
+        val userDetails =
+            TenantContext.runAsRoot {
+                val ticket = accessor.getFirstNativeHeader("ticket")?.ifBlank { null }
+                val bearer =
+                    accessor
+                        .getFirstNativeHeader("Authorization")
+                        ?.removePrefix("Bearer ")
+                        ?.ifBlank { null }
+
+                val resolved =
+                    when {
+                        ticket != null -> resolveByTicket(ticket)
+                        bearer != null -> resolveByJwt(bearer)
+                        else -> throw MessageDeliveryException("Missing ticket or Authorization header")
+                    }
+
+                if (!resolved.isEnabled) {
+                    throw MessageDeliveryException("User account is disabled")
+                }
+
+                if (!companyService.isEnabled(resolved.companyId)) {
+                    throw MessageDeliveryException("Company is disabled")
+                }
+                resolved
+            }
 
         accessor.user = WebSocketPrincipal(userDetails)
     }

@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.chat
 
 import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
@@ -35,6 +36,6 @@ class RabbitChatEventPublisher(
      * emit phantom events on rollback. Upgrade path is a transactional outbox.
      */
     private fun send(event: ChatEvent) {
-        rabbitTemplate.convertAndSend(properties.exchange, event.routingKey, event)
+        rabbitTemplate.convertAndSend(properties.exchange, event.routingKey, ChatEventEnvelope(TenantContext.get(), event))
     }
 }

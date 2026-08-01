@@ -8,6 +8,7 @@ import io.mockk.verify
 import org.efehan.skillmatcherbackend.core.mail.MailSender
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommand
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommandListener
+import org.efehan.skillmatcherbackend.core.mail.rabbit.MailEnvelope
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
@@ -42,7 +43,7 @@ class MailCommandListenerTest {
         io.mockk.every { userRepository.findById(user.id) } returns Optional.of(user)
 
         // when
-        listener.handle(MailCommand.Invitation(user.id, "token-123", 72))
+        listener.handle(MailEnvelope(null, MailCommand.Invitation(user.id, "token-123", 72)))
 
         // then
         verify(exactly = 1) { mailSender.sendInvitationEmail(user, "token-123", 72) }
@@ -54,7 +55,7 @@ class MailCommandListenerTest {
         io.mockk.every { userRepository.findById("gone") } returns Optional.empty()
 
         // when
-        listener.handle(MailCommand.Invitation("gone", "token-123", 72))
+        listener.handle(MailEnvelope(null, MailCommand.Invitation("gone", "token-123", 72)))
 
         // then
         verify(exactly = 0) { mailSender.sendInvitationEmail(any(), any(), any()) }
@@ -69,7 +70,7 @@ class MailCommandListenerTest {
         io.mockk.every { projectRepository.findById("p1") } returns Optional.of(project)
 
         // when
-        listener.handle(MailCommand.ApplicationDecided(applicant.id, "p1", true, null))
+        listener.handle(MailEnvelope(null, MailCommand.ApplicationDecided(applicant.id, "p1", true, null)))
 
         // then
         verify(exactly = 1) { mailSender.sendApplicationDecidedEmail(applicant, project, true, null) }
@@ -83,7 +84,7 @@ class MailCommandListenerTest {
         io.mockk.every { projectRepository.findById("gone") } returns Optional.empty()
 
         // when
-        listener.handle(MailCommand.ApplicationDecided(applicant.id, "gone", true, null))
+        listener.handle(MailEnvelope(null, MailCommand.ApplicationDecided(applicant.id, "gone", true, null)))
 
         // then
         verify(exactly = 0) { mailSender.sendApplicationDecidedEmail(any(), any(), any(), any()) }
@@ -100,7 +101,7 @@ class MailCommandListenerTest {
         io.mockk.every { projectRepository.findById("p1") } returns Optional.of(project)
 
         // when
-        listener.handle(MailCommand.ProjectInvitation(invitee.id, pm.id, "p1", "join us"))
+        listener.handle(MailEnvelope(null, MailCommand.ProjectInvitation(invitee.id, pm.id, "p1", "join us")))
 
         // then
         verify(exactly = 1) { mailSender.sendProjectInvitationEmail(invitee, pm, project, "join us") }

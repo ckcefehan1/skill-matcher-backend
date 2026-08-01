@@ -9,4 +9,5 @@ data class RateLimitProperties(
     val invitationPerMinute: Long,
     val refreshPerMinute: Long,
     val wsTicketPerMinute: Long,
+    val registrationPerMinute: Long,
 )

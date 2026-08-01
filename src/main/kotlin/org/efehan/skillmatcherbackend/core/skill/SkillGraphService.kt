@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.core.skill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.config.properties.SkillGraphProperties
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.SkillModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
@@ -82,40 +83,44 @@ class SkillGraphService(
     fun deriveCoOccurrence() {
         if (!properties.derivationEnabled) return
 
-        val coOccurrences =
-            userSkillRepo.findSkillCoOccurrence(properties.minCoOccurrence.toLong())
-        if (coOccurrences.isEmpty()) return
+        // the skill graph is global (decision 1 in MULTI_TENANCY.md), so co-occurrence
+        // deliberately aggregates user_skills across tenants — declared root context
+        TenantContext.runAsRoot {
+            val coOccurrences =
+                userSkillRepo.findSkillCoOccurrence(properties.minCoOccurrence.toLong())
+            if (coOccurrences.isEmpty()) return@runAsRoot
 
-        val maxCount = coOccurrences.maxOf { it.count }.toDouble()
-        val curatedPairs = loadCuratedPairs(coOccurrences)
+            val maxCount = coOccurrences.maxOf { it.count }.toDouble()
+            val curatedPairs = loadCuratedPairs(coOccurrences)
 
-        var inserted = 0
-        var updated = 0
-        for (co in coOccurrences) {
-            val pairKey = pairKey(co.fromSkill.id, co.toSkill.id)
-            if (pairKey in curatedPairs) continue
+            var inserted = 0
+            var updated = 0
+            for (co in coOccurrences) {
+                val pairKey = pairKey(co.fromSkill.id, co.toSkill.id)
+                if (pairKey in curatedPairs) continue
 
-            val transferPenalty = computeLearnedPenalty(co.count, maxCount)
-            val existing =
-                skillRelationRepo.findByFromSkillAndToSkill(co.fromSkill, co.toSkill)
+                val transferPenalty = computeLearnedPenalty(co.count, maxCount)
+                val existing =
+                    skillRelationRepo.findByFromSkillAndToSkill(co.fromSkill, co.toSkill)
 
-            if (existing == null) {
-                skillRelationRepo.save(
-                    SkillRelationModel(
-                        fromSkill = co.fromSkill,
-                        toSkill = co.toSkill,
-                        relationType = SkillRelationType.SIMILAR_TO,
-                        transferPenalty = transferPenalty,
-                        source = SkillRelationSource.LEARNED,
-                    ),
-                )
-                inserted++
-            } else if (existing.source == SkillRelationSource.LEARNED) {
-                existing.transferPenalty = transferPenalty
-                updated++
+                if (existing == null) {
+                    skillRelationRepo.save(
+                        SkillRelationModel(
+                            fromSkill = co.fromSkill,
+                            toSkill = co.toSkill,
+                            relationType = SkillRelationType.SIMILAR_TO,
+                            transferPenalty = transferPenalty,
+                            source = SkillRelationSource.LEARNED,
+                        ),
+                    )
+                    inserted++
+                } else if (existing.source == SkillRelationSource.LEARNED) {
+                    existing.transferPenalty = transferPenalty
+                    updated++
+                }
             }
+            log.info("Co-occurrence derivation: inserted={}, updated={}, totalPairs={}", inserted, updated, coOccurrences.size)
         }
-        log.info("Co-occurrence derivation: inserted={}, updated={}, totalPairs={}", inserted, updated, coOccurrences.size)
     }
 
     private fun loadCuratedPairs(coOccurrences: List<SkillCoOccurrence>): Set<String> {

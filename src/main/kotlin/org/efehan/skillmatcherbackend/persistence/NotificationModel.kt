@@ -34,7 +34,7 @@ class NotificationModel(
     val body: String,
     @Column(name = "reference_id", nullable = false)
     val referenceId: String,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     @Column(name = "read_at")
     var readAt: Instant? = null
 

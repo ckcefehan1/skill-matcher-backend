@@ -27,7 +27,7 @@ class UserSkillModel(
     val skill: SkillModel,
     @Column(nullable = false)
     var level: Int,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         UserSkillDto(
             id = id,

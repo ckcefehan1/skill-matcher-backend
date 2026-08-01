@@ -40,7 +40,7 @@ class UserModel(
     var role: RoleModel,
     @Column(name = "max_concurrent_projects", nullable = false)
     var maxConcurrentProjects: Int = 3,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     @Column(name = "is_enabled", nullable = false)
     var isEnabled: Boolean = false
 
@@ -76,6 +76,8 @@ interface UserRepository : JpaRepository<UserModel, String> {
     fun findByEmail(email: String): UserModel?
 
     fun existsByEmail(email: String): Boolean
+
+    fun findAllByCompanyId(companyId: String): List<UserModel>
 
     @Query(
         value = """

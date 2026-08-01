@@ -22,6 +22,9 @@ enum class AuditAction {
     USER_ROLE_CHANGED,
     APPLICATION_ACCEPTED,
     APPLICATION_DECLINED,
+    COMPANY_REGISTERED,
+    COMPANY_ENABLED,
+    COMPANY_DISABLED,
 }
 
 /**
@@ -42,6 +45,9 @@ class AuditLogModel(
     val targetId: String?,
     @Column(name = "detail")
     val detail: String?,
+    // nullable root context: SUPERADMIN actions have no tenant, no @TenantId filter here
+    @Column(name = "company_id")
+    val companyId: String? = null,
 ) : AuditingBaseEntity() {
     fun toDTO() =
         AuditLogResponse(

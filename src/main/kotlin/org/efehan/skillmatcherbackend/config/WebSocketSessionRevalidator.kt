@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.config
 
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.messaging.simp.user.SimpUserRegistry
@@ -23,18 +24,21 @@ class WebSocketSessionRevalidator(
 ) {
     @Scheduled(fixedDelayString = "\${websocket.session-revalidation-interval}")
     fun revalidate() {
-        val snapshots =
-            userRegistry.getObject().users.mapNotNull { simpUser ->
-                (simpUser.principal as? WebSocketPrincipal)?.let { simpUser.name to it.securityUser.user.role.name }
-            }
-        if (snapshots.isEmpty()) return
+        // spans all tenants by design: connected users are not scoped to one company
+        TenantContext.runAsRoot {
+            val snapshots =
+                userRegistry.getObject().users.mapNotNull { simpUser ->
+                    (simpUser.principal as? WebSocketPrincipal)?.let { simpUser.name to it.securityUser.user.role.name }
+                }
+            if (snapshots.isEmpty()) return@runAsRoot
 
-        val current = userRepository.findAllById(snapshots.map { it.first }).associateBy { it.id }
+            val current = userRepository.findAllById(snapshots.map { it.first }).associateBy { it.id }
 
-        snapshots.forEach { (userId, role) ->
-            val user = current[userId]
-            if (user == null || !user.isEnabled || user.role.name != role) {
-                sessionRegistry.disconnect(userId)
+            snapshots.forEach { (userId, role) ->
+                val user = current[userId]
+                if (user == null || !user.isEnabled || user.role.name != role) {
+                    sessionRegistry.disconnect(userId)
+                }
             }
         }
     }

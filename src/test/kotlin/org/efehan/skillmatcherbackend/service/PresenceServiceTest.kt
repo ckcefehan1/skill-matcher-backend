@@ -10,6 +10,7 @@ import org.efehan.skillmatcherbackend.config.WebSocketPrincipal
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.core.chat.PresenceResponse
 import org.efehan.skillmatcherbackend.core.chat.PresenceService
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -132,6 +133,26 @@ class PresenceServiceTest {
         // then
         verify(exactly = 0) { conversationRepo.findPartnerIds(any()) }
         verify(exactly = 0) { messagingTemplate.convertAndSendToUser(any<String>(), any(), any()) }
+    }
+
+    @Test
+    fun `partner lookup runs in the user tenant, not in root`() {
+        // given: the STOMP event thread has no tenant bound — the service must bind it
+        TenantContext.clear()
+        val userA = UserBuilder().build().apply { companyId = "company-a" }
+        var tenantDuringLookup: String? = null
+        every { conversationRepo.findPartnerIds(userA) } answers {
+            tenantDuringLookup = TenantContext.get()
+            emptyList()
+        }
+
+        // when
+        presenceService.onConnected(connectedEvent(userA, "session-1"))
+
+        // then
+        assertThat(tenantDuringLookup).isEqualTo("company-a")
+        assertThat(TenantContext.get()).isNull()
+        assertThat(TenantContext.isRootExplicit()).isFalse()
     }
 
     private fun connectedEvent(

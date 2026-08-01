@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.core.mail.rabbit
 
 import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.springframework.amqp.rabbit.core.RabbitTemplate
@@ -90,6 +91,6 @@ class RabbitEmailService(
     }
 
     private fun publish(command: MailCommand) {
-        rabbitTemplate.convertAndSend(properties.exchange, properties.mailRoutingKey, command)
+        rabbitTemplate.convertAndSend(properties.exchange, properties.mailRoutingKey, MailEnvelope(TenantContext.get(), command))
     }
 }

@@ -33,7 +33,7 @@ class ProjectMemberModel(
     var status: ProjectMemberStatus,
     @Column(name = "joined_date", nullable = false)
     val joinedDate: Instant,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         ProjectMemberDto(
             id = id,

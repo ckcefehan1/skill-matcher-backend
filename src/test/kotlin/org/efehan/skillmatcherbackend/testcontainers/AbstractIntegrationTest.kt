@@ -1,8 +1,12 @@
 package org.efehan.skillmatcherbackend.testcontainers
 
 import org.efehan.skillmatcherbackend.TestcontainersConfiguration
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.fixtures.builder.CompanyBuilder
 import org.efehan.skillmatcherbackend.persistence.AuditLogRepository
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
+import org.efehan.skillmatcherbackend.persistence.CompanyModel
+import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
 import org.efehan.skillmatcherbackend.persistence.NotificationRepository
@@ -18,6 +22,7 @@ import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserAvailabilityRepository
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -96,26 +101,45 @@ abstract class AbstractIntegrationTest {
     @Autowired
     protected lateinit var cacheManager: CacheManager
 
+    @Autowired
+    protected lateinit var companyRepository: CompanyRepository
+
+    protected lateinit var companyA: CompanyModel
+    protected lateinit var companyB: CompanyModel
+
     @BeforeEach
     fun cleanUp() {
-        cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
-        auditLogRepository.deleteAll()
-        notificationRepository.deleteAll()
-        chatMessageRepository.deleteAll()
-        conversationRepository.deleteAll()
-        applicationRepository.deleteAll()
-        projectMemberRepository.deleteAll()
-        projectSkillRepository.deleteAll()
-        projectRepository.deleteAll()
-        userAvailabilityRepository.deleteAll()
-        userSkillRepository.deleteAll()
-        skillRelationRepository.deleteAll()
-        skillRepository.deleteAll()
-        passwordResetTokenRepository.deleteAll()
-        invitationTokenRepository.deleteAll()
-        refreshTokenRepository.deleteAll()
-        userRepository.deleteAll()
-        roleRepository.deleteAll()
+        // cleanup runs unfiltered: deleteAll in a tenant context would miss the other tenant's rows
+        TenantContext.runAsRoot {
+            cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
+            auditLogRepository.deleteAll()
+            notificationRepository.deleteAll()
+            chatMessageRepository.deleteAll()
+            conversationRepository.deleteAll()
+            applicationRepository.deleteAll()
+            projectMemberRepository.deleteAll()
+            projectSkillRepository.deleteAll()
+            projectRepository.deleteAll()
+            userAvailabilityRepository.deleteAll()
+            userSkillRepository.deleteAll()
+            skillRelationRepository.deleteAll()
+            skillRepository.deleteAll()
+            passwordResetTokenRepository.deleteAll()
+            invitationTokenRepository.deleteAll()
+            refreshTokenRepository.deleteAll()
+            userRepository.deleteAll()
+            roleRepository.deleteAll()
+            companyRepository.deleteAll()
+
+            companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
+            companyB = companyRepository.save(CompanyBuilder().build(name = "Company B"))
+        }
+        TenantContext.set(companyA.id)
+    }
+
+    @AfterEach
+    fun clearTenant() {
+        TenantContext.clear()
     }
 
     protected fun MockHttpServletRequestDsl.withBodyRequest(body: Any) {

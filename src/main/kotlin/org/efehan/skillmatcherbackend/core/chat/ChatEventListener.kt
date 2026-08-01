@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.chat
 
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
@@ -12,7 +13,12 @@ class ChatEventListener(
     private val dispatcher: ChatEventDispatcher,
 ) {
     @RabbitListener(queues = ["\${rabbitmq.chat-queue}"], containerFactory = "eventRabbitListenerContainerFactory")
-    fun handle(event: ChatEvent) {
-        dispatcher.dispatch(event)
+    fun handle(envelope: ChatEventEnvelope) {
+        try {
+            envelope.companyId?.let { TenantContext.set(it) } ?: TenantContext.allowRoot()
+            dispatcher.dispatch(envelope.event)
+        } finally {
+            TenantContext.clear()
+        }
     }
 }

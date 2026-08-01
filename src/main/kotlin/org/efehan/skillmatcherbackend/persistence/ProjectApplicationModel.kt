@@ -46,7 +46,7 @@ class ProjectApplicationModel(
     var decidedBy: UserModel? = null,
     @Column(name = "message", length = 1000)
     var message: String? = null,
-) : AuditingBaseEntity()
+) : TenantAwareEntity()
 
 enum class ApplicationStatus {
     PENDING,

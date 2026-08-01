@@ -21,7 +21,7 @@ class ConversationModel(
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_two_id", nullable = false)
     val userTwo: UserModel,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     @Column(name = "last_message_at")
     var lastMessageAt: Instant? = null
 

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <changeSet id="1775000000000-1" author="efehan">
+        <createTable tableName="companies">
+            <column name="id" type="VARCHAR(255)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_companies"/>
+            </column>
+            <column name="created_date" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="last_modified_by" type="VARCHAR(255)"/>
+            <column name="last_modified_date" type="DATETIME"/>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="street" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="zip" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="city" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="country" type="VARCHAR(2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="industry" type="VARCHAR(255)"/>
+            <column name="company_size" type="VARCHAR(50)"/>
+            <column name="website" type="VARCHAR(255)"/>
+            <column name="is_enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="self_registered" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="1775000000000-2" author="efehan">
+        <addUniqueConstraint columnNames="name" constraintName="uc_companies_name" tableName="companies"/>
+    </changeSet>
+    <changeSet id="1775000000000-3" author="efehan">
+        <insert tableName="roles">
+            <column name="id" value="a0000000-0000-4000-8000-000000000001"/>
+            <column name="name" value="SUPERADMIN"/>
+            <column name="description" value="Platform operator, sees all tenants"/>
+        </insert>
+    </changeSet>
+    <!-- idempotent: standalone installs used to seed these via code with random ids -->
+    <changeSet id="1775000000000-4" author="efehan">
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000010', 'ADMIN', 'Company administrator'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ADMIN')</sql>
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000011', 'PROJECTMANAGER', 'Project manager'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'PROJECTMANAGER')</sql>
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000012', 'EMPLOYER', 'Employer'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'EMPLOYER')</sql>
+    </changeSet>
+    <!-- anchor tenant for SUPERADMIN accounts: users.company_id is NOT NULL, but a
+         SUPERADMIN belongs to no customer company. The role keeps it out of the JWT. -->
+    <changeSet id="1775000000000-5" author="efehan">
+        <insert tableName="companies">
+            <column name="id" value="a0000000-0000-4000-8000-000000000003"/>
+            <column name="name" value="Platform"/>
+            <column name="street" value="n/a"/>
+            <column name="zip" value="n/a"/>
+            <column name="city" value="n/a"/>
+            <column name="country" value="DE"/>
+            <column name="is_enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

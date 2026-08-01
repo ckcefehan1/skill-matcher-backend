@@ -32,7 +32,7 @@ class InvitationTokenModel(
     val expiresAt: Instant,
     @Column(name = "used", nullable = false)
     var used: Boolean = false,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         ValidateInvitationResponse(
             valid = true,
@@ -43,4 +43,6 @@ class InvitationTokenModel(
 @Repository
 interface InvitationTokenRepository : JpaRepository<InvitationTokenModel, String> {
     fun findByTokenHash(tokenHash: String): InvitationTokenModel?
+
+    fun deleteByUser(user: UserModel)
 }

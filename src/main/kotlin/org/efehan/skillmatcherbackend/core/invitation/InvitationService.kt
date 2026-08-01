@@ -17,6 +17,7 @@ import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -39,6 +40,7 @@ class InvitationService(
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
     private val clock: Clock,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
     private val logger = LoggerFactory.getLogger(InvitationService::class.java)
 
@@ -52,7 +54,8 @@ class InvitationService(
                 tokenHash = tokenHash,
                 user = user,
                 expiresAt = expiresAt,
-            ),
+                // explicit: callers may run in root context (company registration, superadmin)
+            ).apply { companyId = user.companyId },
         )
 
         emailService.sendInvitationEmail(user, rawToken, invitationProperties.tokenExpirationHours)
@@ -129,6 +132,8 @@ class InvitationService(
         user.lastName = lastName
         user.isEnabled = true
         userRepository.save(user)
+        // listeners (e.g. self-registered company activation) join this transaction
+        eventPublisher.publishEvent(InvitationAcceptedEvent(user))
 
         invitation.used = true
         invitationTokenRepository.save(invitation)
@@ -158,6 +163,11 @@ class InvitationService(
         )
     }
 
+    /**
+     * Invite acceptance doubles as the email-ownership proof for self-registered
+     * companies: CompanyService listens for [InvitationAcceptedEvent] and flips
+     * their is_enabled in this transaction.
+     */
     fun resendInvitation(userId: String) {
         val user =
             userRepository.findById(userId).orElseThrow {
