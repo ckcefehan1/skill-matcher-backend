@@ -7,7 +7,10 @@ import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.efehan.skillmatcherbackend.core.chat.ChatEventPublisher
 import org.efehan.skillmatcherbackend.core.chat.ChatService
 import org.efehan.skillmatcherbackend.core.chat.RabbitChatEventPublisher
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.fixtures.builder.CompanyBuilder
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
+import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationModel
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.NotificationRepository
@@ -16,6 +19,7 @@ import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -79,13 +83,26 @@ class ChatRabbitIT {
     @Autowired
     private lateinit var notificationRepository: NotificationRepository
 
+    @Autowired
+    private lateinit var companyRepository: CompanyRepository
+
     @BeforeEach
     fun cleanUp() {
+        // cleanup runs unfiltered: deleteAll in a tenant context would miss the other tenant's rows
+        TenantContext.clear()
         notificationRepository.deleteAll()
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()
         userRepository.deleteAll()
         roleRepository.deleteAll()
+        companyRepository.deleteAll()
+
+        TenantContext.set(companyRepository.save(CompanyBuilder().build(name = "Rabbit GmbH")).id)
+    }
+
+    @AfterEach
+    fun clearTenant() {
+        TenantContext.clear()
     }
 
     private fun createUser(email: String): UserModel {

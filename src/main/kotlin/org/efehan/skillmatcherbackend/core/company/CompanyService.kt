@@ -84,7 +84,8 @@ class CompanyService(
                     status = HttpStatus.NOT_FOUND,
                 )
 
-        // root context (SUPERADMIN has no tenant): companyId goes on the entity explicitly
+        // root context (SUPERADMIN has no tenant): companyId goes on the entity explicitly.
+        // Hibernate only permits that because the resolver reports the root tenant.
         val admin =
             UserModel(
                 email = request.adminEmail,
@@ -96,7 +97,12 @@ class CompanyService(
         userRepository.save(admin)
 
         invitationService.createAndSendInvitation(admin)
-        auditService.record(AuditAction.COMPANY_REGISTERED, targetId = company.id, detail = "name=${company.name}")
+        auditService.record(
+            AuditAction.COMPANY_REGISTERED,
+            targetId = company.id,
+            detail = "name=${company.name}",
+            companyId = company.id,
+        )
 
         return company
     }

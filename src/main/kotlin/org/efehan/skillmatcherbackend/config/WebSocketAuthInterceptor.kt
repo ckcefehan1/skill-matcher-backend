@@ -10,9 +10,11 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
 import org.springframework.messaging.MessageDeliveryException
+import org.springframework.messaging.MessageHandler
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.stomp.StompCommand
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
-import org.springframework.messaging.support.ChannelInterceptor
+import org.springframework.messaging.support.ExecutorChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
 
 @Configuration
@@ -20,7 +22,7 @@ class WebSocketAuthInterceptor(
     private val jwtService: JwtService,
     private val userDetailsService: CustomUserDetailsService,
     private val wsTicketService: WsTicketService,
-) : ChannelInterceptor {
+) : ExecutorChannelInterceptor {
     override fun preSend(
         message: Message<*>,
         channel: MessageChannel,
@@ -33,15 +35,29 @@ class WebSocketAuthInterceptor(
             StompCommand.SEND -> authorizeSend(accessor.destination)
             else -> {}
         }
-        // every inbound frame runs its @MessageMapping handler in this thread's tenant
-        (accessor.user as? WebSocketPrincipal)?.securityUser?.companyId?.let { TenantContext.set(it) }
         return message
     }
 
-    override fun afterSendCompletion(
+    /**
+     * preSend still runs on the receiving thread, but the @MessageMapping handler runs on the
+     * inbound channel's executor, so the tenant has to be bound here to reach the service call.
+     */
+    override fun beforeHandle(
         message: Message<*>,
         channel: MessageChannel,
-        sent: Boolean,
+        handler: MessageHandler,
+    ): Message<*> {
+        (SimpMessageHeaderAccessor.getUser(message.headers) as? WebSocketPrincipal)
+            ?.securityUser
+            ?.companyId
+            ?.let { TenantContext.set(it) }
+        return message
+    }
+
+    override fun afterMessageHandled(
+        message: Message<*>,
+        channel: MessageChannel,
+        handler: MessageHandler,
         ex: Exception?,
     ) {
         TenantContext.clear()

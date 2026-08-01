@@ -4,6 +4,7 @@ import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
+import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -32,8 +33,18 @@ class StandaloneDataInitializer(
 
     @Transactional
     override fun run(args: ApplicationArguments) {
+        ensureRoles()
         val company = ensureCompany()
         ensureAdmin(company)
+    }
+
+    private fun ensureRoles() {
+        // a fresh on-prem install has no roles at all — they were never seeded by a migration
+        listOf(RoleName.ADMIN, RoleName.PROJECTMANAGER, RoleName.EMPLOYER).forEach { roleName ->
+            if (roleRepository.findByName(roleName.name) == null) {
+                roleRepository.save(RoleModel(name = roleName.name, description = null))
+            }
+        }
     }
 
     private fun ensureCompany(): CompanyModel {

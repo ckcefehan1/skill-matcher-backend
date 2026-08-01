@@ -10,6 +10,8 @@ object TenantContext {
 
     fun set(companyId: String) = current.set(companyId)
 
+    // static so the @Cacheable key expressions can reach it via SpEL's T(...) operator
+    @JvmStatic
     fun get(): String? = current.get()
 
     fun clear() = current.remove()

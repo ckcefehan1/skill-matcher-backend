@@ -1,7 +1,11 @@
 package org.efehan.skillmatcherbackend.testcontainers
 
 import org.efehan.skillmatcherbackend.TestcontainersConfiguration
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.fixtures.builder.CompanyBuilder
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
+import org.efehan.skillmatcherbackend.persistence.CompanyModel
+import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
 import org.efehan.skillmatcherbackend.persistence.NotificationRepository
@@ -84,6 +88,11 @@ abstract class AbstractWebSocketIntegrationTest {
     @Autowired
     protected lateinit var notificationRepository: NotificationRepository
 
+    @Autowired
+    protected lateinit var companyRepository: CompanyRepository
+
+    protected lateinit var companyA: CompanyModel
+
     protected lateinit var stompClient: WebSocketStompClient
 
     private val sessions = mutableListOf<StompSession>()
@@ -100,9 +109,11 @@ abstract class AbstractWebSocketIntegrationTest {
     fun tearDown() {
         sessions.forEach { if (it.isConnected) it.disconnect() }
         sessions.clear()
+        TenantContext.clear()
     }
 
     protected fun cleanUp() {
+        TenantContext.clear()
         notificationRepository.deleteAll()
         chatMessageRepository.deleteAll()
         conversationRepository.deleteAll()
@@ -117,6 +128,10 @@ abstract class AbstractWebSocketIntegrationTest {
         refreshTokenRepository.deleteAll()
         userRepository.deleteAll()
         roleRepository.deleteAll()
+        companyRepository.deleteAll()
+
+        companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
+        TenantContext.set(companyA.id)
     }
 
     protected fun connectWithAuth(token: String): StompSession {

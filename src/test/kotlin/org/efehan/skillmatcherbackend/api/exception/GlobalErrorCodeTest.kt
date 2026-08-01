@@ -167,7 +167,7 @@ class GlobalErrorCodeTest {
         assertThat(expectedRateLimitExceededErrorCode).isEqualTo(GlobalErrorCode.RATE_LIMIT_EXCEEDED.name)
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(50)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(51)
     }
 
     @Test

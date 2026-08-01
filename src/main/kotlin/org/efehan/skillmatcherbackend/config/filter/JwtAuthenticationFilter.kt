@@ -28,8 +28,12 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain,
     ) {
         val token = extractToken(request)
+        // restored rather than cleared: outer tenant scopes (tests, interceptors) survive the request
+        val previousTenant = TenantContext.get()
 
         try {
+            // a request never inherits an ambient tenant — only the claim decides
+            TenantContext.clear()
             if (token != null && SecurityContextHolder.getContext().authentication == null) {
                 try {
                     val claims = jwtService.validateToken(token)
@@ -62,7 +66,7 @@ class JwtAuthenticationFilter(
 
             filterChain.doFilter(request, response)
         } finally {
-            TenantContext.clear()
+            previousTenant?.let { TenantContext.set(it) } ?: TenantContext.clear()
         }
     }
 

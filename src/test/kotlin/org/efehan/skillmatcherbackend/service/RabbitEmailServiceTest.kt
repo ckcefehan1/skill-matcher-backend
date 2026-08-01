@@ -5,6 +5,7 @@ import io.mockk.junit5.MockKExtension
 import io.mockk.verify
 import org.efehan.skillmatcherbackend.config.properties.RabbitMQProperties
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommand
+import org.efehan.skillmatcherbackend.core.mail.rabbit.MailEnvelope
 import org.efehan.skillmatcherbackend.core.mail.rabbit.RabbitEmailService
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.RoleModel
@@ -67,7 +68,7 @@ class RabbitEmailServiceTest {
             rabbitTemplate.convertAndSend(
                 properties.exchange,
                 properties.mailRoutingKey,
-                MailCommand.Invitation(user.id, "token-123", 72),
+                MailEnvelope(null, MailCommand.Invitation(user.id, "token-123", 72)),
             )
         }
     }
@@ -92,7 +93,7 @@ class RabbitEmailServiceTest {
             rabbitTemplate.convertAndSend(
                 properties.exchange,
                 properties.mailRoutingKey,
-                MailCommand.PasswordReset(user.id, "reset-token", 24),
+                MailEnvelope(null, MailCommand.PasswordReset(user.id, "reset-token", 24)),
             )
         }
     }
@@ -110,7 +111,7 @@ class RabbitEmailServiceTest {
             rabbitTemplate.convertAndSend(
                 properties.exchange,
                 properties.mailRoutingKey,
-                MailCommand.Welcome(user.id),
+                MailEnvelope(null, MailCommand.Welcome(user.id)),
             )
         }
     }

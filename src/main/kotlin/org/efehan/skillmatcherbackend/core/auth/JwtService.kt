@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtParser
 import io.jsonwebtoken.Jwts
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.http.HttpStatus
@@ -43,13 +44,15 @@ class JwtService(
 
     fun generateAccessToken(user: UserModel): String {
         val now = clock.instant()
-        // SUPERADMIN tokens carry no companyId claim on purpose: missing claim = root context
+        // SUPERADMIN tokens carry no companyId claim on purpose: missing claim = root context.
+        // The row itself still has one, because users.company_id is NOT NULL.
+        val companyId = user.companyId.takeUnless { user.role.name == RoleName.SUPERADMIN.name }
         return Jwts
             .builder()
             .subject(user.email)
             .claim("userId", user.id)
             .claim("role", user.role.name)
-            .claim("companyId", user.companyId)
+            .claim("companyId", companyId)
             .issuer(jwtProperties.issuer)
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusMillis(jwtProperties.accessTokenExpiration)))
