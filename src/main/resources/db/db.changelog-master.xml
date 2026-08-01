@@ -38,4 +38,7 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/v0.23_add_refresh_token_family.xml"/>
     <include file="db/changelog/v0.24_create_notifications.xml"/>
     <include file="db/changelog/v0.25_create_audit_logs.xml"/>
+    <include file="db/changelog/v0.26_create_companies_and_superadmin_role.xml"/>
+    <include file="db/changelog/v0.27_add_company_id_columns_and_backfill.xml"/>
+    <include file="db/changelog/v0.28_enforce_company_id_constraints.xml"/>
 </databaseChangeLog>
