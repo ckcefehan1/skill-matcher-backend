@@ -43,11 +43,13 @@ class JwtService(
 
     fun generateAccessToken(user: UserModel): String {
         val now = clock.instant()
+        // SUPERADMIN tokens carry no companyId claim on purpose: missing claim = root context
         return Jwts
             .builder()
             .subject(user.email)
             .claim("userId", user.id)
             .claim("role", user.role.name)
+            .claim("companyId", user.companyId)
             .issuer(jwtProperties.issuer)
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusMillis(jwtProperties.accessTokenExpiration)))

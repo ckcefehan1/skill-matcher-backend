@@ -24,4 +24,5 @@ enum class RoleName {
     PROJECTMANAGER,
     ADMIN,
     EMPLOYER,
+    SUPERADMIN,
 }

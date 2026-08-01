@@ -9,4 +9,6 @@ data class CacheProperties(
     val skillCatalogMaxSize: Long,
     val matchingTtl: Duration,
     val matchingMaxSize: Long,
+    val companyStatusTtl: Duration,
+    val companyStatusMaxSize: Long,
 )
