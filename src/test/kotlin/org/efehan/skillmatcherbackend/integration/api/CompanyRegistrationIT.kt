@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -40,6 +41,14 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
         country = "DE",
         adminEmail = adminEmail,
     )
+
+    @Test
+    fun `public config reports registration as enabled in SaaS mode`() {
+        mockMvc.get("/api/public/config").andExpect {
+            status { isOk() }
+            jsonPath("$.registrationEnabled") { value(true) }
+        }
+    }
 
     @Test
     fun `registration creates disabled company and admin, invite acceptance activates both`() {

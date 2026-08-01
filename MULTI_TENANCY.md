@@ -214,6 +214,7 @@ Bestehende On-Prem-Bestandskunden landen durch den Backfill automatisch in der D
 
 - Login, Cookies, CSRF: unverändert.
 - Neue öffentliche Seite „Unternehmen registrieren" — Formular: Firmenname, Adresse (Straße, PLZ, Stadt, Land als Select), adminEmail, optional Branche/Größe/Website; danach „Mail verschickt"-Hinweis — keine Info, ob Email oder Firmenname schon existiert. Nur im SaaS-Modus verlinkt; Invite-Acceptance-Seite existiert bereits und wird wiederverwendet.
+- **Modus-Erkennung:** `GET /api/public/config` liefert `registrationEnabled`. Zur Buildzeit geht das nicht — ein Vite-Flag landet fest im Bundle und würde zwei Images erzwingen. `app.standalone.enabled` bleibt die einzige Quelle, das Frontend liest sie zur Laufzeit.
 - Neuer Bereich „Company-Verwaltung" nur für `SUPERADMIN` (Rollen-Gate im Router).
 - Alle bestehenden Features laufen unverändert im Tenant des eingeloggten Users — kein UI-Tenant-Switcher (außer ggf. später für SUPERADMIN-Impersonation, nicht Iteration 1).
 - **Merge-Kopplung:** Frontend und Backend gehen gemeinsam live — Login stellt sonst keinen `companyId`-Kontext her.

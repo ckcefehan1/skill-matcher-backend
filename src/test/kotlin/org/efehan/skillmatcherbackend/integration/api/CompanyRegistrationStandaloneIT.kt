@@ -5,6 +5,7 @@ import org.efehan.skillmatcherbackend.testcontainers.AbstractIntegrationTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 
 @SpringBootTest(
@@ -20,6 +21,14 @@ import org.springframework.test.web.servlet.post
 )
 @DisplayName("Company Registration in Standalone Mode")
 class CompanyRegistrationStandaloneIT : AbstractIntegrationTest() {
+    @Test
+    fun `public config reports registration as disabled in standalone mode`() {
+        mockMvc.get("/api/public/config").andExpect {
+            status { isOk() }
+            jsonPath("$.registrationEnabled") { value(false) }
+        }
+    }
+
     @Test
     fun `registration endpoint returns 404 in standalone mode`() {
         mockMvc
