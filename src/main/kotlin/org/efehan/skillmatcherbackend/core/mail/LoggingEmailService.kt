@@ -19,6 +19,15 @@ class LoggingEmailService : EmailService {
         logger.info("Mock sending invitation email to {} with token {} (expires in {}h)", user.email, invitationToken, expirationHours)
     }
 
+    override fun sendRegistrationCodeEmail(
+        user: UserModel,
+        code: String,
+        expirationMinutes: Long,
+    ) {
+        // the code itself never hits a log line — it is the credential
+        logger.info("Mock sending registration code email to {} (expires in {}min)", user.email, expirationMinutes)
+    }
+
     override fun sendWelcomeEmail(user: UserModel) {
         logger.info("Mock sending welcome email to {}", user.email)
     }

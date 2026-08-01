@@ -19,6 +19,7 @@ data class MailEnvelope(
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
     JsonSubTypes.Type(value = MailCommand.Invitation::class, name = "invitation"),
+    JsonSubTypes.Type(value = MailCommand.RegistrationCode::class, name = "registration-code"),
     JsonSubTypes.Type(value = MailCommand.Welcome::class, name = "welcome"),
     JsonSubTypes.Type(value = MailCommand.PasswordReset::class, name = "password-reset"),
     JsonSubTypes.Type(value = MailCommand.ApplicationSubmitted::class, name = "application-submitted"),
@@ -31,6 +32,12 @@ sealed interface MailCommand {
         val userId: String,
         val invitationToken: String,
         val expirationHours: Long,
+    ) : MailCommand
+
+    data class RegistrationCode(
+        val userId: String,
+        val code: String,
+        val expirationMinutes: Long,
     ) : MailCommand
 
     data class Welcome(

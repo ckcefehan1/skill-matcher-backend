@@ -94,3 +94,29 @@ data class ProvisionCompanyCommand(
 data class UpdateCompanyStatusRequest(
     val enabled: Boolean,
 )
+
+/** Step 1 of the code flow: checked when the 6th digit lands. Never 401/403 —
+ *  the SPA treats those as expired session / CSRF and would log the user out. */
+data class VerifyRegistrationCodeRequest(
+    @field:NotBlank @field:Email val email: String,
+    @field:NotBlank @field:Pattern(regexp = "\\d{6}") val code: String,
+)
+
+data class VerifyRegistrationCodeResponse(
+    val valid: Boolean,
+)
+
+/** Step 2: re-checks the code (that check IS the authentication), sets password
+ *  and profile, activates user and company. */
+data class CompleteRegistrationRequest(
+    @field:NotBlank @field:Email val email: String,
+    @field:NotBlank @field:Pattern(regexp = "\\d{6}") val code: String,
+    @field:NotBlank val password: String,
+    @field:NotBlank val firstName: String,
+    @field:NotBlank val lastName: String,
+)
+
+/** Always 202 — the answer must not reveal whether the email is registered. */
+data class ResendRegistrationCodeRequest(
+    @field:NotBlank @field:Email val email: String,
+)

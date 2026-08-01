@@ -34,6 +34,9 @@ class RateLimitingFilter(
             Rule("/api/auth/refresh", properties.refreshPerMinute),
             Rule("/api/auth/ws-ticket", properties.wsTicketPerMinute),
             Rule("/api/public/companies/register", properties.registrationPerMinute),
+            // after /register on purpose: startsWith matches in list order, so
+            // /register keeps its own bucket and verify/complete/resend share this one
+            Rule("/api/public/companies/", properties.registrationCodePerMinute),
         )
     }
 

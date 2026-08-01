@@ -125,7 +125,14 @@ class CompanyService(
             ).apply { companyId = company.id }
         userRepository.save(admin)
 
-        invitationService.createAndSendInvitation(admin)
+        if (command.selfRegistered) {
+            // self-registration proves email ownership via one-time code typed into
+            // the open tab; employee invitations keep the link (different person
+            // at the browser)
+            invitationService.createAndSendRegistrationCode(admin)
+        } else {
+            invitationService.createAndSendInvitation(admin)
+        }
         auditService.record(
             AuditAction.COMPANY_REGISTERED,
             targetId = company.id,

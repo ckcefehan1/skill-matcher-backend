@@ -24,6 +24,7 @@ class RateLimitingFilterTest {
             refreshPerMinute = 5,
             wsTicketPerMinute = 5,
             registrationPerMinute = 5,
+            registrationCodePerMinute = 5,
         )
     private lateinit var filter: RateLimitingFilter
 
@@ -103,5 +104,26 @@ class RateLimitingFilterTest {
         // then
         verify(exactly = 10) { chain.doFilter(any(), any()) }
         assertThat(response.status).isEqualTo(200)
+    }
+
+    @Test
+    fun `register keeps its own bucket separate from the other company endpoints`() {
+        // given - rule order matters: /register must not fall into the
+        // /api/public/companies/ prefix bucket
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        // when - exhaust the verify/complete/resend bucket
+        repeat(5) {
+            filter.doFilter(MockHttpServletRequest("POST", "/api/public/companies/verify"), MockHttpServletResponse(), chain)
+        }
+
+        // then - register is still allowed, verify is not
+        val registerResponse = MockHttpServletResponse()
+        filter.doFilter(MockHttpServletRequest("POST", "/api/public/companies/register"), registerResponse, chain)
+        assertThat(registerResponse.status).isEqualTo(200)
+
+        val verifyResponse = MockHttpServletResponse()
+        filter.doFilter(MockHttpServletRequest("POST", "/api/public/companies/verify"), verifyResponse, chain)
+        assertThat(verifyResponse.status).isEqualTo(429)
     }
 }

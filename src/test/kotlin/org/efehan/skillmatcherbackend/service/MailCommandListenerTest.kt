@@ -62,6 +62,31 @@ class MailCommandListenerTest {
     }
 
     @Test
+    fun `sends registration code mail when user exists`() {
+        // given
+        val user = user("test@example.com")
+        io.mockk.every { userRepository.findById(user.id) } returns Optional.of(user)
+
+        // when
+        listener.handle(MailEnvelope(null, MailCommand.RegistrationCode(user.id, "123456", 15)))
+
+        // then
+        verify(exactly = 1) { mailSender.sendRegistrationCodeEmail(user, "123456", 15) }
+    }
+
+    @Test
+    fun `drops registration code mail when user no longer exists`() {
+        // given
+        io.mockk.every { userRepository.findById("gone") } returns Optional.empty()
+
+        // when
+        listener.handle(MailEnvelope(null, MailCommand.RegistrationCode("gone", "123456", 15)))
+
+        // then
+        verify(exactly = 0) { mailSender.sendRegistrationCodeEmail(any(), any(), any()) }
+    }
+
+    @Test
     fun `sends application decided mail when entities exist`() {
         // given
         val applicant = user("applicant@example.com")

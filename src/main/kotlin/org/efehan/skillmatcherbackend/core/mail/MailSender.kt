@@ -37,6 +37,19 @@ class MailSender(
         send(user.email, "You have been invited to Skill Matcher", htmlContent)
     }
 
+    fun sendRegistrationCodeEmail(
+        user: UserModel,
+        code: String,
+        expirationMinutes: Long,
+    ) {
+        val htmlContent =
+            templateService.renderRegistrationCode(
+                code = code,
+                expirationMinutes = expirationMinutes,
+            )
+        send(user.email, "Your Skill Matcher registration code", htmlContent)
+    }
+
     fun sendWelcomeEmail(user: UserModel) {
         val htmlContent = templateService.renderWelcome(firstName = user.firstName ?: "User")
         send(user.email, "Welcome to Skill Matcher", htmlContent)

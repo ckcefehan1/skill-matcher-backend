@@ -99,6 +99,24 @@ class RabbitEmailServiceTest {
     }
 
     @Test
+    fun `registration code email carries the plain code for the listener`() {
+        // given
+        val user = user()
+
+        // when
+        rabbitEmailService.sendRegistrationCodeEmail(user, "123456", 15)
+
+        // then
+        verify(exactly = 1) {
+            rabbitTemplate.convertAndSend(
+                properties.exchange,
+                properties.mailRoutingKey,
+                MailEnvelope(null, MailCommand.RegistrationCode(user.id, "123456", 15)),
+            )
+        }
+    }
+
+    @Test
     fun `welcome email carries only the user id`() {
         // given
         val user = user()

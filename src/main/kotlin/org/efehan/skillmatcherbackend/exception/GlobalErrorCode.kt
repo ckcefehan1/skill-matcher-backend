@@ -64,6 +64,7 @@ enum class GlobalErrorCode(
     INVALID_INVITATION_TOKEN("Invitation token is invalid."),
     INVITATION_ALREADY_ACCEPTED("Invitation has already been accepted."),
     INVITATION_TOKEN_EXPIRED("Invitation token has expired."),
+    INVALID_REGISTRATION_CODE("Registration code is invalid."),
 
     // Password Reset
     INVALID_PASSWORD_RESET_TOKEN("Invalid password reset token."),

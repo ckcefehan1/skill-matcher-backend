@@ -38,6 +38,7 @@ class GlobalErrorCodeTest {
     val expectedInvalidInvitationTokenErrorCode = "INVALID_INVITATION_TOKEN"
     val expectedInvitationAlreadyAcceptedErrorCode = "INVITATION_ALREADY_ACCEPTED"
     val expectedInvitationTokenExpiredErrorCode = "INVITATION_TOKEN_EXPIRED"
+    val expectedInvalidRegistrationCodeErrorCode = "INVALID_REGISTRATION_CODE"
 
     // Password Reset
     val expectedInvalidPasswordResetTokenErrorCode = "INVALID_PASSWORD_RESET_TOKEN"
@@ -119,6 +120,7 @@ class GlobalErrorCodeTest {
         assertThat(expectedInvalidInvitationTokenErrorCode).isEqualTo(GlobalErrorCode.INVALID_INVITATION_TOKEN.name)
         assertThat(expectedInvitationAlreadyAcceptedErrorCode).isEqualTo(GlobalErrorCode.INVITATION_ALREADY_ACCEPTED.name)
         assertThat(expectedInvitationTokenExpiredErrorCode).isEqualTo(GlobalErrorCode.INVITATION_TOKEN_EXPIRED.name)
+        assertThat(expectedInvalidRegistrationCodeErrorCode).isEqualTo(GlobalErrorCode.INVALID_REGISTRATION_CODE.name)
 
         // Password Reset
         assertThat(expectedInvalidPasswordResetTokenErrorCode).isEqualTo(GlobalErrorCode.INVALID_PASSWORD_RESET_TOKEN.name)
@@ -167,7 +169,7 @@ class GlobalErrorCodeTest {
         assertThat(expectedRateLimitExceededErrorCode).isEqualTo(GlobalErrorCode.RATE_LIMIT_EXCEEDED.name)
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(51)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(52)
     }
 
     @Test

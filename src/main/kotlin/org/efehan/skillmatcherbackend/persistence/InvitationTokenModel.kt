@@ -5,10 +5,12 @@ import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.LockModeType
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.efehan.skillmatcherbackend.core.invitation.ValidateInvitationResponse
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.stereotype.Repository
 import java.time.Instant
 
@@ -29,9 +31,16 @@ class InvitationTokenModel(
     @JoinColumn(name = "user_id", nullable = false)
     val user: UserModel,
     @Column(name = "expires_at", nullable = false)
-    val expiresAt: Instant,
+    var expiresAt: Instant,
     @Column(name = "used", nullable = false)
     var used: Boolean = false,
+    // HMAC of the 6-digit self-registration code. Null on employee invitations —
+    // that null is what distinguishes the two row types.
+    @Column(name = "code_hash")
+    var codeHash: String? = null,
+    // failed verify attempts against this row, capped in InvitationService
+    @Column(name = "attempts", nullable = false)
+    var attempts: Int = 0,
 ) : TenantAwareEntity() {
     fun toDTO() =
         ValidateInvitationResponse(
@@ -43,6 +52,14 @@ class InvitationTokenModel(
 @Repository
 interface InvitationTokenRepository : JpaRepository<InvitationTokenModel, String> {
     fun findByTokenHash(tokenHash: String): InvitationTokenModel?
+
+    /**
+     * SELECT ... FOR UPDATE: the attempt cap is a read-check-write on [attempts], so
+     * parallel verifies would otherwise all read the same value and each spend the
+     * same slot. Callers must already be in a read-write transaction.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findFirstByUserAndCodeHashNotNullOrderByCreatedDateDesc(user: UserModel): InvitationTokenModel?
 
     fun deleteByUser(user: UserModel)
 }

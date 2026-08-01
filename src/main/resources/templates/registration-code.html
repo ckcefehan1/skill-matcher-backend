@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Your registration code</h1>
+    <p>Hello,</p>
+    <p>Enter this code in your open browser tab to continue your Skill Matcher company registration:</p>
+    <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;" th:text="${code}">123456</p>
+    <p>The code is valid for <span th:text="${expirationMinutes}">15</span> minutes.</p>
+    <p>If you did not register, you can safely ignore this email.</p>
+</body>
+</html>

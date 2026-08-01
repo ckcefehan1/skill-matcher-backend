@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <!--
+      Self-registration switches from invite link to 6-digit one-time code.
+      The code rides on invitation_tokens (user, expires_at, used already there,
+      zombie cleanup already deletes by user). code_hash stays null on employee
+      invitations — that null is what tells the two row types apart.
+    -->
+    <changeSet id="1782500000000-1" author="efehan">
+        <addColumn tableName="invitation_tokens">
+            <column name="code_hash" type="VARCHAR(255)"/>
+            <column name="attempts" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>
