@@ -27,6 +27,14 @@ class RabbitEmailService(
         publishAfterCommit(MailCommand.Invitation(user.id, invitationToken, expirationHours))
     }
 
+    override fun sendRegistrationCodeEmail(
+        user: UserModel,
+        code: String,
+        expirationMinutes: Long,
+    ) {
+        publishAfterCommit(MailCommand.RegistrationCode(user.id, code, expirationMinutes))
+    }
+
     override fun sendWelcomeEmail(user: UserModel) {
         publishAfterCommit(MailCommand.Welcome(user.id))
     }

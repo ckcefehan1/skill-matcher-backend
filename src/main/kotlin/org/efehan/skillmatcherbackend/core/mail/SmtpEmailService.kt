@@ -29,6 +29,16 @@ class SmtpEmailService(
     }
 
     @Async
+    override fun sendRegistrationCodeEmail(
+        user: UserModel,
+        code: String,
+        expirationMinutes: Long,
+    ) {
+        runCatching { mailSender.sendRegistrationCodeEmail(user, code, expirationMinutes) }
+            .onFailure { logger.error("Failed to send registration code email to={}", user.email, it) }
+    }
+
+    @Async
     override fun sendWelcomeEmail(user: UserModel) {
         runCatching { mailSender.sendWelcomeEmail(user) }
             .onFailure { logger.error("Failed to send welcome email to={}", user.email, it) }

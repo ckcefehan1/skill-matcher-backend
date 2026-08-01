@@ -10,6 +10,12 @@ interface EmailService {
         expirationHours: Long,
     )
 
+    fun sendRegistrationCodeEmail(
+        user: UserModel,
+        code: String,
+        expirationMinutes: Long,
+    )
+
     fun sendWelcomeEmail(user: UserModel)
 
     fun sendPasswordResetEmail(

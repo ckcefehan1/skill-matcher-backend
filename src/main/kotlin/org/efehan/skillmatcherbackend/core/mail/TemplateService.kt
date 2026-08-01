@@ -24,6 +24,18 @@ class TemplateService(
         return templateEngine.process("invitation", context)
     }
 
+    fun renderRegistrationCode(
+        code: String,
+        expirationMinutes: Long,
+    ): String {
+        val context =
+            Context().apply {
+                setVariable("code", code)
+                setVariable("expirationMinutes", expirationMinutes)
+            }
+        return templateEngine.process("registration-code", context)
+    }
+
     fun renderWelcome(firstName: String): String {
         val context =
             Context().apply {

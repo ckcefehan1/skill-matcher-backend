@@ -39,6 +39,11 @@ class MailCommandListener(
                     mailSender.sendInvitationEmail(it, command.invitationToken, command.expirationHours)
                 } ?: drop("Invitation", command.userId)
 
+            is MailCommand.RegistrationCode ->
+                user(command.userId)?.let {
+                    mailSender.sendRegistrationCodeEmail(it, command.code, command.expirationMinutes)
+                } ?: drop("RegistrationCode", command.userId)
+
             is MailCommand.Welcome ->
                 user(command.userId)?.let {
                     mailSender.sendWelcomeEmail(it)
