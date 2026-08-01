@@ -6,4 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class InvitationProperties(
     val tokenExpirationHours: Long,
     val codeExpirationMinutes: Long,
+    val maxCodeAttempts: Int,
+    val resendCooldownSeconds: Long,
 )

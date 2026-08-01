@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.Instant
@@ -96,30 +97,19 @@ class InvitationService(
 
     /**
      * Answers unknown email and wrong code identically (and hashes in both branches)
-     * so the endpoint cannot enumerate registered emails. Deliberately side-effect
-     * free apart from the attempts counter: the code is consumed by
-     * [completeRegistration], not here. Returning instead of throwing commits the
-     * counter increment — a rollback would make the cap useless.
+     * so the endpoint cannot enumerate registered emails. Burns an attempt on failure
+     * but never consumes the code — that is [completeRegistration]'s job.
      */
     fun verifyRegistrationCode(
         email: String,
         code: String,
-    ): Boolean {
-        val codeHash = jwtService.hashToken(code)
-        val invitation = findCodeInvitation(email) ?: return false
-
-        if (!invitation.isCodeUsable(codeHash)) {
-            invitation.attempts += 1
-            invitationTokenRepository.save(invitation)
-            return false
-        }
-        return true
-    }
+    ): Boolean = consumeCodeAttempt(email, code) != null
 
     /**
      * Re-checks the code before setting the password: verify sets no cookie and no
      * server state, so this repeated check IS the authentication. On success the
      * regular invitation acceptance runs (event, company activation, tokens).
+     * Null means "no usable code"; the caller turns that into the error response.
      */
     fun completeRegistration(
         email: String,
@@ -127,20 +117,26 @@ class InvitationService(
         password: String,
         firstName: String,
         lastName: String,
-    ): AuthTokens {
+    ): AuthTokens? = consumeCodeAttempt(email, code)?.let { acceptInvitation(it, password, firstName, lastName) }
+
+    /**
+     * The one gate in front of both verify and complete. A cap that only verify feeds
+     * is no cap at all — an attacker skips verify and guesses straight against
+     * complete, which is the endpoint that hands out the tokens. Returning instead of
+     * throwing is what makes the cap work: a thrown exception rolls the transaction
+     * back and with it the counter increment.
+     */
+    private fun consumeCodeAttempt(
+        email: String,
+        code: String,
+    ): InvitationTokenModel? {
         val codeHash = jwtService.hashToken(code)
-        val invitation =
-            findCodeInvitation(email)
-                ?: throw invalidRegistrationCode()
+        val invitation = findCodeInvitation(email) ?: return null
+        if (invitation.isCodeUsable(codeHash)) return invitation
 
-        // a wrong code throws and rolls back, so the attempts counter is only fed
-        // by verify — brute force here is bounded by the rate-limit bucket shared
-        // with verify and resend
-        if (!invitation.isCodeUsable(codeHash)) {
-            throw invalidRegistrationCode()
-        }
-
-        return acceptInvitation(invitation, password, firstName, lastName)
+        invitation.attempts += 1
+        invitationTokenRepository.save(invitation)
+        return null
     }
 
     /**
@@ -151,6 +147,10 @@ class InvitationService(
     fun resendRegistrationCode(email: String) {
         val invitation = findCodeInvitation(email) ?: return
         if (invitation.used) return
+        if (invitation.isInResendCooldown()) {
+            logger.debug("Registration code resend suppressed, still in cooldown")
+            return
+        }
 
         val code = generateRegistrationCode()
         invitation.codeHash = jwtService.hashToken(code)
@@ -167,24 +167,22 @@ class InvitationService(
             .findByEmail(email)
             ?.let { invitationTokenRepository.findFirstByUserAndCodeHashNotNullOrderByCreatedDateDesc(it) }
 
-    private fun InvitationTokenModel.isCodeUsable(codeHash: String): Boolean =
-        !used &&
-            attempts < MAX_CODE_ATTEMPTS &&
-            this.codeHash == codeHash &&
-            expiresAt.isAfter(Instant.now(clock))
+    private fun InvitationTokenModel.isCodeUsable(candidateHash: String): Boolean {
+        val storedHash = codeHash ?: return false
+        return !used &&
+            attempts < invitationProperties.maxCodeAttempts &&
+            expiresAt.isAfter(Instant.now(clock)) &&
+            // String.equals bails out on the first differing char
+            MessageDigest.isEqual(storedHash.toByteArray(), candidateHash.toByteArray())
+    }
+
+    /** expiresAt is only ever written when a code is minted, so it doubles as "last sent". */
+    private fun InvitationTokenModel.isInResendCooldown(): Boolean =
+        expiresAt
+            .minus(invitationProperties.codeExpirationMinutes, ChronoUnit.MINUTES)
+            .isAfter(Instant.now(clock).minusSeconds(invitationProperties.resendCooldownSeconds))
 
     private fun generateRegistrationCode(): String = "%06d".format(secureRandom.nextInt(1_000_000))
-
-    private fun invalidRegistrationCode() =
-        InvalidTokenException(
-            message = "Registration code is invalid.",
-            errorCode = GlobalErrorCode.INVALID_REGISTRATION_CODE,
-            status = HttpStatus.BAD_REQUEST,
-        )
-
-    companion object {
-        private const val MAX_CODE_ATTEMPTS = 5
-    }
 
     fun validateInvitation(rawToken: String): InvitationTokenModel {
         val tokenHash = jwtService.hashToken(rawToken)

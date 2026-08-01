@@ -12,6 +12,7 @@ import org.efehan.skillmatcherbackend.core.auth.AuthResponse
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
@@ -91,6 +92,8 @@ class CompanyRegistrationController(
         response: HttpServletResponse,
     ): AuthResponse {
         requireSaas("/api/public/companies/complete")
+        // the service returns null instead of throwing so its attempts counter survives
+        // the transaction — the rejection has to be raised out here
         val tokens =
             invitationService.completeRegistration(
                 email = request.email,
@@ -98,6 +101,10 @@ class CompanyRegistrationController(
                 password = request.password,
                 firstName = request.firstName,
                 lastName = request.lastName,
+            ) ?: throw InvalidTokenException(
+                message = "Registration code is invalid.",
+                errorCode = GlobalErrorCode.INVALID_REGISTRATION_CODE,
+                status = HttpStatus.BAD_REQUEST,
             )
         authCookieService.addCookies(response, tokens.accessToken, tokens.refreshToken)
         return tokens.response
@@ -106,8 +113,9 @@ class CompanyRegistrationController(
     @Operation(
         summary = "Resend registration code",
         description =
-            "Replaces the current code and restarts its validity. Always answered the " +
-                "same way, whether the email is registered or not.",
+            "Replaces the current code and restarts its validity. Rate limited per IP and " +
+                "additionally cooldown-gated per address. Always answered the same way, " +
+                "whether the email is registered, in cooldown, or unknown.",
     )
     @ApiResponses(
         ApiResponse(responseCode = "202", description = "Request accepted."),

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.web.servlet.post
+import java.time.temporal.ChronoUnit
 
 @DisplayName("Company Registration Code Integration Tests")
 class CompanyRegistrationCodeIT : AbstractIntegrationTest() {
@@ -50,15 +51,19 @@ class CompanyRegistrationCodeIT : AbstractIntegrationTest() {
     private fun admin(email: String = "chef@neue-gmbh.de"): UserModel = TenantContext.runAsRoot { userRepository.findByEmail(email)!! }
 
     /** The mailed code is random, so tests pin a known one straight into the row. */
-    private fun pinCode(
-        email: String = "chef@neue-gmbh.de",
-        code: String = "123456",
-    ) {
+    private fun pinCode(code: String = "123456") {
         TenantContext.runAsRoot {
-            val row =
-                invitationTokenRepository
-                    .findFirstByUserAndCodeHashNotNullOrderByCreatedDateDesc(admin(email))!!
+            val row = invitationTokenRepository.findAll().single { it.codeHash != null }
             row.codeHash = jwtService.hashToken(code)
+            invitationTokenRepository.save(row)
+        }
+    }
+
+    /** Resend is cooldown-gated off expiresAt, so tests that resend backdate the mint. */
+    private fun ageCode() {
+        TenantContext.runAsRoot {
+            val row = invitationTokenRepository.findAll().single { it.codeHash != null }
+            row.expiresAt = row.expiresAt.minus(2, ChronoUnit.MINUTES)
             invitationTokenRepository.save(row)
         }
     }
@@ -85,6 +90,11 @@ class CompanyRegistrationCodeIT : AbstractIntegrationTest() {
                     lastName = "Neue",
                 ),
             )
+        }
+
+    private fun resend(email: String) =
+        mockMvc.post("/api/public/companies/resend-code") {
+            withBodyRequest(ResendRegistrationCodeRequest(email))
         }
 
     @Test
@@ -189,16 +199,46 @@ class CompanyRegistrationCodeIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `resend kills the old code and keeps exactly one code row`() {
+    fun `complete alone is capped after 5 wrong codes`() {
         register()
         pinCode()
 
-        mockMvc
-            .post("/api/public/companies/resend-code") {
-                withBodyRequest(ResendRegistrationCodeRequest("chef@neue-gmbh.de"))
-            }.andExpect {
-                status { isAccepted() }
-            }
+        repeat(5) {
+            complete("chef@neue-gmbh.de", "000000").andExpect { status { isBadRequest() } }
+        }
+
+        // the correct code is dead too: complete feeds the same counter as verify,
+        // otherwise skipping verify would buy unlimited guesses
+        complete("chef@neue-gmbh.de", "123456").andExpect { status { isBadRequest() } }
+        verify("chef@neue-gmbh.de", "123456").andExpect {
+            status { isOk() }
+            jsonPath("$.valid") { value(false) }
+        }
+        TenantContext.runAsRoot { assertThat(admin().passwordHash).isNull() }
+    }
+
+    @Test
+    fun `resend inside the cooldown does not mint a new code`() {
+        register()
+        pinCode()
+
+        resend("chef@neue-gmbh.de").andExpect { status { isAccepted() } }
+
+        TenantContext.runAsRoot {
+            val row = invitationTokenRepository.findAll().single { it.codeHash != null }
+            assertThat(row.codeHash).isEqualTo(jwtService.hashToken("123456"))
+        }
+    }
+
+    @Test
+    fun `resend kills the old code and keeps exactly one code row`() {
+        register()
+        pinCode()
+        ageCode()
+
+        resend("chef@neue-gmbh.de").andExpect {
+            status { isAccepted() }
+        }
 
         TenantContext.runAsRoot {
             val codeRows = invitationTokenRepository.findAll().filter { it.codeHash != null }
@@ -215,11 +255,8 @@ class CompanyRegistrationCodeIT : AbstractIntegrationTest() {
 
     @Test
     fun `resend for unknown email is answered the same way`() {
-        mockMvc
-            .post("/api/public/companies/resend-code") {
-                withBodyRequest(ResendRegistrationCodeRequest("ghost@example.com"))
-            }.andExpect {
-                status { isAccepted() }
-            }
+        resend("ghost@example.com").andExpect {
+            status { isAccepted() }
+        }
     }
 }
