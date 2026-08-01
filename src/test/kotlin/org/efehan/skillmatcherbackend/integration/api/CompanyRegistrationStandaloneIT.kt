@@ -1,6 +1,9 @@
 package org.efehan.skillmatcherbackend.integration.api
 
+import org.efehan.skillmatcherbackend.core.company.CompleteRegistrationRequest
 import org.efehan.skillmatcherbackend.core.company.RegisterCompanyRequest
+import org.efehan.skillmatcherbackend.core.company.ResendRegistrationCodeRequest
+import org.efehan.skillmatcherbackend.core.company.VerifyRegistrationCodeRequest
 import org.efehan.skillmatcherbackend.testcontainers.AbstractIntegrationTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -41,6 +44,53 @@ class CompanyRegistrationStandaloneIT : AbstractIntegrationTest() {
                         city = "Berlin",
                         country = "DE",
                         adminEmail = "chef@neue-gmbh.de",
+                    ),
+                )
+            }.andExpect {
+                status { isNotFound() }
+            }
+    }
+
+    @Test
+    fun `verify endpoint returns 404 in standalone mode`() {
+        mockMvc
+            .post("/api/public/companies/verify") {
+                withBodyRequest(
+                    VerifyRegistrationCodeRequest(
+                        email = "chef@neue-gmbh.de",
+                        code = "123456",
+                    ),
+                )
+            }.andExpect {
+                status { isNotFound() }
+            }
+    }
+
+    @Test
+    fun `complete endpoint returns 404 in standalone mode`() {
+        mockMvc
+            .post("/api/public/companies/complete") {
+                withBodyRequest(
+                    CompleteRegistrationRequest(
+                        email = "chef@neue-gmbh.de",
+                        code = "123456",
+                        password = "Secret-Password1!",
+                        firstName = "Chef",
+                        lastName = "Neue",
+                    ),
+                )
+            }.andExpect {
+                status { isNotFound() }
+            }
+    }
+
+    @Test
+    fun `resend-code endpoint returns 404 in standalone mode`() {
+        mockMvc
+            .post("/api/public/companies/resend-code") {
+                withBodyRequest(
+                    ResendRegistrationCodeRequest(
+                        email = "chef@neue-gmbh.de",
                     ),
                 )
             }.andExpect {
