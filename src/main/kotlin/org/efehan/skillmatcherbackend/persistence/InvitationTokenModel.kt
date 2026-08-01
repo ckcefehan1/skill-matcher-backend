@@ -32,7 +32,7 @@ class InvitationTokenModel(
     val expiresAt: Instant,
     @Column(name = "used", nullable = false)
     var used: Boolean = false,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         ValidateInvitationResponse(
             valid = true,

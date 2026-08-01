@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.audit
 
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.AuditLogModel
 import org.efehan.skillmatcherbackend.persistence.AuditLogRepository
@@ -34,6 +35,7 @@ class AuditService(
                 actorEmail = actor?.email,
                 targetId = targetId,
                 detail = detail,
+                companyId = TenantContext.get(),
             ),
         )
     }

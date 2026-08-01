@@ -42,6 +42,9 @@ class AuditLogModel(
     val targetId: String?,
     @Column(name = "detail")
     val detail: String?,
+    // nullable root context: SUPERADMIN actions have no tenant, no @TenantId filter here
+    @Column(name = "company_id")
+    val companyId: String? = null,
 ) : AuditingBaseEntity() {
     fun toDTO() =
         AuditLogResponse(

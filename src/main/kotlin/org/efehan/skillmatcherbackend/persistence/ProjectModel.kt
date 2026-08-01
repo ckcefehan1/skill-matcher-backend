@@ -32,7 +32,7 @@ class ProjectModel(
     @ManyToOne(optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     val owner: UserModel,
-) : AuditingBaseEntity() {
+) : TenantAwareEntity() {
     fun toDTO() =
         ProjectDto(
             id = id,
