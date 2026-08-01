@@ -72,7 +72,7 @@ class MatchingService(
     // Ergebnisse dort bis zu cache.matching-ttl (60s) stale — bei Bedarf dort auch @CacheEvict
     @Cacheable(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES],
-        key = "{#projectId, #minScore, #limit, #tier}",
+        key = "{T(org.efehan.skillmatcherbackend.core.tenant.TenantContext).get(), #projectId, #minScore, #limit, #tier}",
     )
     fun findCandidatesForProject(
         projectId: String,
@@ -142,7 +142,7 @@ class MatchingService(
 
     @Cacheable(
         cacheNames = [CacheConfig.MATCHING_PROJECTS_FOR_USER],
-        key = "{#user.id, #minScore, #limit, #tier}",
+        key = "{T(org.efehan.skillmatcherbackend.core.tenant.TenantContext).get(), #user.id, #minScore, #limit, #tier}",
     )
     fun findProjectsForUser(
         user: UserModel,

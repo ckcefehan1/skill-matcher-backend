@@ -1,5 +1,11 @@
 package org.efehan.skillmatcherbackend.core.chat
 
+/** See MailEnvelope — companyId lets the listener scope its DB work to the publisher's tenant. */
+data class ChatEventEnvelope(
+    val companyId: String?,
+    val event: ChatEvent,
+)
+
 sealed interface ChatEvent {
     val routingKey: String
 

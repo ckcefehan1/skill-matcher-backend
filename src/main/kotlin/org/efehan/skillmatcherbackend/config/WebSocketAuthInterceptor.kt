@@ -4,6 +4,7 @@ import org.efehan.skillmatcherbackend.core.auth.CustomUserDetailsService
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.core.auth.WsTicketService
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.springframework.context.annotation.Configuration
 import org.springframework.messaging.Message
@@ -32,7 +33,18 @@ class WebSocketAuthInterceptor(
             StompCommand.SEND -> authorizeSend(accessor.destination)
             else -> {}
         }
+        // every inbound frame runs its @MessageMapping handler in this thread's tenant
+        (accessor.user as? WebSocketPrincipal)?.securityUser?.companyId?.let { TenantContext.set(it) }
         return message
+    }
+
+    override fun afterSendCompletion(
+        message: Message<*>,
+        channel: MessageChannel,
+        sent: Boolean,
+        ex: Exception?,
+    ) {
+        TenantContext.clear()
     }
 
     private fun authenticate(accessor: StompHeaderAccessor) {

@@ -1,5 +1,14 @@
 package org.efehan.skillmatcherbackend.core.mail.rabbit
 
+/**
+ * companyId rides along so the listener can scope its DB work to the tenant that
+ * published the command. Null = root context (e.g. company self-registration).
+ */
+data class MailEnvelope(
+    val companyId: String?,
+    val command: MailCommand,
+)
+
 sealed interface MailCommand {
     data class Invitation(
         val userId: String,

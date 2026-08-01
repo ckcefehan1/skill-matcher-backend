@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.mail.rabbit
 
 import org.efehan.skillmatcherbackend.core.mail.MailSender
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -22,7 +23,16 @@ class MailCommandListener(
     private val logger = LoggerFactory.getLogger(MailCommandListener::class.java)
 
     @RabbitListener(queues = ["\${rabbitmq.mail-queue}"], containerFactory = "eventRabbitListenerContainerFactory")
-    fun handle(command: MailCommand) {
+    fun handle(envelope: MailEnvelope) {
+        try {
+            envelope.companyId?.let { TenantContext.set(it) }
+            handleCommand(envelope.command)
+        } finally {
+            TenantContext.clear()
+        }
+    }
+
+    private fun handleCommand(command: MailCommand) {
         when (command) {
             is MailCommand.Invitation ->
                 user(command.userId)?.let {
