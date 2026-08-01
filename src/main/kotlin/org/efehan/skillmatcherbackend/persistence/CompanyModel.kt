@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
 import org.efehan.skillmatcherbackend.core.company.CompanyResponse
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.time.Instant
 
@@ -65,4 +66,8 @@ interface CompanyRepository : JpaRepository<CompanyModel, String> {
     fun existsByName(name: String): Boolean
 
     fun findBySelfRegisteredTrueAndIsEnabledFalseAndCreatedDateBefore(cutoff: Instant): List<CompanyModel>
+
+    /** Transaction-scoped PG advisory lock so only one instance runs the zombie cleanup. */
+    @Query(value = "SELECT pg_try_advisory_xact_lock(72727201)", nativeQuery = true)
+    fun tryAcquireZombieCleanupLock(): Boolean
 }

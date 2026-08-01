@@ -1,6 +1,6 @@
 package org.efehan.skillmatcherbackend.integration.api
 
-import org.efehan.skillmatcherbackend.core.company.CreateCompanyRequest
+import org.efehan.skillmatcherbackend.core.company.RegisterCompanyRequest
 import org.efehan.skillmatcherbackend.testcontainers.AbstractIntegrationTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -25,7 +25,7 @@ class CompanyRegistrationStandaloneIT : AbstractIntegrationTest() {
         mockMvc
             .post("/api/public/companies/register") {
                 withBodyRequest(
-                    CreateCompanyRequest(
+                    RegisterCompanyRequest(
                         name = "Neue GmbH",
                         street = "Hauptstraße 1",
                         zip = "10115",

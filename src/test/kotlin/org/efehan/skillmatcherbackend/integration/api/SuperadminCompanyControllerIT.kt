@@ -81,18 +81,19 @@ class SuperadminCompanyControllerIT : AbstractIntegrationTest() {
             }
 
         // then: company, disabled admin and invitation token exist, all wired to the new tenant
-        TenantContext.clear()
-        val company = companyRepository.findAll().single { it.name == "Neue GmbH" }
-        assertThat(company.isEnabled).isTrue()
+        TenantContext.runAsRoot {
+            val company = companyRepository.findAll().single { it.name == "Neue GmbH" }
+            assertThat(company.isEnabled).isTrue()
 
-        val admin = userRepository.findByEmail("chef@neue-gmbh.de")!!
-        assertThat(admin.isEnabled).isFalse()
-        assertThat(admin.companyId).isEqualTo(company.id)
+            val admin = userRepository.findByEmail("chef@neue-gmbh.de")!!
+            assertThat(admin.isEnabled).isFalse()
+            assertThat(admin.companyId).isEqualTo(company.id)
 
-        val invitations =
-            invitationTokenRepository.findAll().filter { it.user.id == admin.id }
-        assertThat(invitations).hasSize(1)
-        assertThat(invitations.single().companyId).isEqualTo(company.id)
+            val invitations =
+                invitationTokenRepository.findAll().filter { it.user.id == admin.id }
+            assertThat(invitations).hasSize(1)
+            assertThat(invitations.single().companyId).isEqualTo(company.id)
+        }
     }
 
     @Test

@@ -10,6 +10,7 @@ import org.efehan.skillmatcherbackend.core.company.CompanyService
 import org.efehan.skillmatcherbackend.core.company.CreateCompanyRequest
 import org.efehan.skillmatcherbackend.core.company.UpdateCompanyStatusRequest
 import org.springframework.http.HttpStatus
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/superadmin/companies")
+@PreAuthorize("hasRole('SUPERADMIN')")
 @Tag(name = "Superadmin", description = "Platform-level company management. SUPERADMIN role required.")
 class SuperadminCompanyController(
     private val companyService: CompanyService,
@@ -39,7 +41,7 @@ class SuperadminCompanyController(
     @ResponseStatus(HttpStatus.CREATED)
     fun createCompany(
         @Valid @RequestBody request: CreateCompanyRequest,
-    ): CompanyResponse = companyService.create(request).toDTO()
+    ): CompanyResponse = companyService.provision(request.toProvision())!!.toDTO()
 
     @Operation(summary = "List companies", description = "Lists all companies across all tenants.")
     @ApiResponses(

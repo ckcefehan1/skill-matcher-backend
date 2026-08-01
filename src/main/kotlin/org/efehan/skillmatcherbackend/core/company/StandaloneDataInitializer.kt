@@ -2,9 +2,10 @@ package org.efehan.skillmatcherbackend.core.company
 
 import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
-import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
@@ -33,22 +34,15 @@ class StandaloneDataInitializer(
 
     @Transactional
     override fun run(args: ApplicationArguments) {
-        ensureRoles()
-        val company = ensureCompany()
-        ensureAdmin(company)
-    }
-
-    private fun ensureRoles() {
-        // a fresh on-prem install has no roles at all — they were never seeded by a migration
-        listOf(RoleName.ADMIN, RoleName.PROJECTMANAGER, RoleName.EMPLOYER).forEach { roleName ->
-            if (roleRepository.findByName(roleName.name) == null) {
-                roleRepository.save(RoleModel(name = roleName.name, description = null))
-            }
+        TenantContext.runAsRoot {
+            val company = ensureCompany()
+            ensureAdmin(company)
         }
     }
 
     private fun ensureCompany(): CompanyModel {
-        companyRepository.findAll().firstOrNull()?.let { return it }
+        // the Platform anchor is seeded by v0.26 in every install and is not the customer tenant
+        companyRepository.findAll().firstOrNull { it.id != PLATFORM_COMPANY_ID }?.let { return it }
 
         val missing =
             mapOf(

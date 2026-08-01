@@ -2,7 +2,7 @@ package org.efehan.skillmatcherbackend.integration.api
 
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.auth.JwtService
-import org.efehan.skillmatcherbackend.core.company.CreateCompanyRequest
+import org.efehan.skillmatcherbackend.core.company.RegisterCompanyRequest
 import org.efehan.skillmatcherbackend.core.invitation.AcceptInvitationRequest
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
@@ -32,7 +32,7 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
     private fun request(
         name: String = "Neue GmbH",
         adminEmail: String = "chef@neue-gmbh.de",
-    ) = CreateCompanyRequest(
+    ) = RegisterCompanyRequest(
         name = name,
         street = "Hauptstraße 1",
         zip = "10115",
@@ -52,25 +52,26 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
             }
 
         // then: company disabled + self-registered, admin disabled, invitation pending
-        TenantContext.clear()
-        val company = companyRepository.findAll().single { it.name == "Neue GmbH" }
-        assertThat(company.isEnabled).isFalse()
-        assertThat(company.selfRegistered).isTrue()
+        TenantContext.runAsRoot {
+            val company = companyRepository.findAll().single { it.name == "Neue GmbH" }
+            assertThat(company.isEnabled).isFalse()
+            assertThat(company.selfRegistered).isTrue()
 
-        val admin = userRepository.findByEmail("chef@neue-gmbh.de")!!
-        assertThat(admin.isEnabled).isFalse()
-        assertThat(admin.companyId).isEqualTo(company.id)
+            val admin = userRepository.findByEmail("chef@neue-gmbh.de")!!
+            assertThat(admin.isEnabled).isFalse()
+            assertThat(admin.companyId).isEqualTo(company.id)
 
-        // given: a known raw token replacing the generated one
-        invitationTokenRepository.deleteAll()
-        invitationTokenRepository.save(
-            InvitationTokenModel(
-                tokenHash = jwtService.hashToken("registration-token"),
-                user = admin,
-                expiresAt = Instant.now().plus(72, ChronoUnit.HOURS),
-                // root context here, so the tenant has to come from the user
-            ).apply { companyId = admin.companyId },
-        )
+            // given: a known raw token replacing the generated one
+            invitationTokenRepository.deleteAll()
+            invitationTokenRepository.save(
+                InvitationTokenModel(
+                    tokenHash = jwtService.hashToken("registration-token"),
+                    user = admin,
+                    expiresAt = Instant.now().plus(72, ChronoUnit.HOURS),
+                    // root context here, so the tenant has to come from the user
+                ).apply { companyId = admin.companyId },
+            )
+        }
 
         // when: invite accepted
         mockMvc
@@ -88,8 +89,11 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
             }
 
         // then: user and company are enabled
-        assertThat(userRepository.findByEmail("chef@neue-gmbh.de")!!.isEnabled).isTrue()
-        assertThat(companyRepository.findById(company.id).get().isEnabled).isTrue()
+        TenantContext.runAsRoot {
+            assertThat(userRepository.findByEmail("chef@neue-gmbh.de")!!.isEnabled).isTrue()
+            val company = companyRepository.findAll().single { it.name == "Neue GmbH" }
+            assertThat(companyRepository.findById(company.id).get().isEnabled).isTrue()
+        }
     }
 
     @Test
@@ -111,13 +115,14 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
             }
 
         // then
-        TenantContext.clear()
-        assertThat(companyRepository.findAll().none { it.name == "Andere GmbH" }).isTrue()
-        assertThat(userRepository.findAll().count { it.email == "chef@neue-gmbh.de" }).isEqualTo(1)
+        TenantContext.runAsRoot {
+            assertThat(companyRepository.findAll().none { it.name == "Andere GmbH" }).isTrue()
+            assertThat(userRepository.findAll().count { it.email == "chef@neue-gmbh.de" }).isEqualTo(1)
+        }
     }
 
     @Test
-    fun `duplicate company name conflicts`() {
+    fun `duplicate company name is answered like a success and creates nothing`() {
         // given
         mockMvc
             .post("/api/public/companies/register") {
@@ -126,13 +131,20 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
                 status { isAccepted() }
             }
 
-        // when/then
+        // when: same name, different email — same answer as success, otherwise the
+        // endpoint would enumerate the customer list
         mockMvc
             .post("/api/public/companies/register") {
                 withBodyRequest(request(adminEmail = "wer@anders.de"))
             }.andExpect {
-                status { isConflict() }
+                status { isAccepted() }
             }
+
+        // then
+        TenantContext.runAsRoot {
+            assertThat(companyRepository.findAll().count { it.name == "Neue GmbH" }).isEqualTo(1)
+            assertThat(userRepository.findByEmail("wer@anders.de")).isNull()
+        }
     }
 
     @Test
@@ -140,6 +152,16 @@ class CompanyRegistrationIT : AbstractIntegrationTest() {
         mockMvc
             .post("/api/public/companies/register") {
                 withBodyRequest(request().copy(street = ""))
+            }.andExpect {
+                status { isBadRequest() }
+            }
+    }
+
+    @Test
+    fun `lowercase country is rejected`() {
+        mockMvc
+            .post("/api/public/companies/register") {
+                withBodyRequest(request().copy(country = "de"))
             }.andExpect {
                 status { isBadRequest() }
             }

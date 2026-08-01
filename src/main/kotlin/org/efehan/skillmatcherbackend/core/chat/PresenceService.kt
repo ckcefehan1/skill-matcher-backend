@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.chat
 
 import org.efehan.skillmatcherbackend.config.WebSocketPrincipal
+import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.springframework.context.event.EventListener
@@ -65,9 +66,12 @@ class PresenceService(
         online: Boolean,
     ) {
         val presence = PresenceResponse(userId = user.id, online = online)
-        // ids only: connect/disconnect fires on every tab open, no need to hydrate conversations
-        conversationRepo.findPartnerIds(user).forEach { partnerId ->
-            messagingTemplate.convertAndSendToUser(partnerId, "/queue/presence", presence)
+        // STOMP event threads run outside WebSocketAuthInterceptor — bind the tenant explicitly
+        TenantContext.withTenant(user.companyId) {
+            // ids only: connect/disconnect fires on every tab open, no need to hydrate conversations
+            conversationRepo.findPartnerIds(user).forEach { partnerId ->
+                messagingTemplate.convertAndSendToUser(partnerId, "/queue/presence", presence)
+            }
         }
     }
 }

@@ -25,7 +25,7 @@ class MailCommandListener(
     @RabbitListener(queues = ["\${rabbitmq.mail-queue}"], containerFactory = "eventRabbitListenerContainerFactory")
     fun handle(envelope: MailEnvelope) {
         try {
-            envelope.companyId?.let { TenantContext.set(it) }
+            envelope.companyId?.let { TenantContext.set(it) } ?: TenantContext.allowRoot()
             handleCommand(envelope.command)
         } finally {
             TenantContext.clear()

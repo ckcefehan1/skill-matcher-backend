@@ -21,6 +21,7 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
+import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.junit.jupiter.api.DisplayName
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.http.HttpStatus
 import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
@@ -100,19 +102,26 @@ class AdminUserServiceTest {
     }
 
     @Test
-    fun `createUser throws EntryNotFoundException when role does not exist`() {
-        // given
-        every { userRepository.existsByEmail("max.mustermann@firma.de") } returns false
-        every { roleRepository.findByName("INVALID_ROLE") } returns null
+    fun `createUser rejects SUPERADMIN with forbidden`() {
+        // the allowlist guards the privilege escalation: a company ADMIN must not
+        // mint the role that turns the next login into unfiltered root access
+        assertThatThrownBy {
+            adminUserService.createUser("max.mustermann@firma.de", "SUPERADMIN")
+        }.isInstanceOf(AccessDeniedException::class.java)
+            .satisfies({ ex ->
+                assertThat((ex as AccessDeniedException).status).isEqualTo(HttpStatus.FORBIDDEN)
+            })
 
-        // then
+        verify(exactly = 0) { userRepository.save(any()) }
+        verify(exactly = 0) { roleRepository.findByName(any()) }
+    }
+
+    @Test
+    fun `createUser rejects unknown role with forbidden`() {
+        // unknown names fail the same allowlist — no lookup, no ROLE_NOT_FOUND oracle
         assertThatThrownBy {
             adminUserService.createUser("max.mustermann@firma.de", "INVALID_ROLE")
-        }.isInstanceOf(EntryNotFoundException::class.java)
-            .satisfies({ ex ->
-                val e = ex as EntryNotFoundException
-                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.ROLE_NOT_FOUND)
-            })
+        }.isInstanceOf(AccessDeniedException::class.java)
 
         verify(exactly = 0) { userRepository.save(any()) }
     }
@@ -268,21 +277,22 @@ class AdminUserServiceTest {
     }
 
     @Test
-    fun `updateUserRole throws EntryNotFoundException when role not found`() {
-        // given
-        val user = UserBuilder().build(email = "max@firma.de", role = RoleBuilder().build(name = "EMPLOYER"))
-
-        every { userRepository.findById(user.id) } returns Optional.of(user)
-        every { roleRepository.findByName("NONEXISTENT") } returns null
-
-        // then
+    fun `updateUserRole rejects SUPERADMIN with forbidden`() {
         assertThatThrownBy {
-            adminUserService.updateUserRole(user.id, "NONEXISTENT")
-        }.isInstanceOf(EntryNotFoundException::class.java)
+            adminUserService.updateUserRole("some-id", "SUPERADMIN")
+        }.isInstanceOf(AccessDeniedException::class.java)
             .satisfies({ ex ->
-                val e = ex as EntryNotFoundException
-                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.ROLE_NOT_FOUND)
+                assertThat((ex as AccessDeniedException).status).isEqualTo(HttpStatus.FORBIDDEN)
             })
+
+        verify(exactly = 0) { userRepository.save(any()) }
+    }
+
+    @Test
+    fun `updateUserRole rejects unknown role with forbidden`() {
+        assertThatThrownBy {
+            adminUserService.updateUserRole("some-id", "NONEXISTENT")
+        }.isInstanceOf(AccessDeniedException::class.java)
 
         verify(exactly = 0) { userRepository.save(any()) }
     }

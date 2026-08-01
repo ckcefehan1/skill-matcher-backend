@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.config.filter
 
+import io.jsonwebtoken.Claims
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -30,43 +31,59 @@ class JwtAuthenticationFilter(
         val token = extractToken(request)
         // restored rather than cleared: outer tenant scopes (tests, interceptors) survive the request
         val previousTenant = TenantContext.get()
+        val previousRoot = TenantContext.isRootExplicit()
 
         try {
             // a request never inherits an ambient tenant — only the claim decides
             TenantContext.clear()
-            if (token != null && SecurityContextHolder.getContext().authentication == null) {
-                try {
-                    val claims = jwtService.validateToken(token)
-                    val companyId = claims["companyId"] as String?
+            val claims = token?.takeIf { SecurityContextHolder.getContext().authentication == null }?.let(::validateOrNull)
+            val companyId = claims?.get("companyId") as String?
 
-                    if (companyId != null && !companyService.isEnabled(companyId)) {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Company is disabled")
-                        return
-                    }
-
-                    // before the first DB access: everything below runs in this tenant
-                    companyId?.let { TenantContext.set(it) }
-
-                    val userDetails = userDetailsService.loadUserByUsername(claims.subject)
-
-                    if (userDetails.isEnabled) {
-                        val auth =
-                            UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.authorities,
-                            )
-                        auth.details = WebAuthenticationDetailsSource().buildDetails(request)
-                        SecurityContextHolder.getContext().authentication = auth
-                    }
-                } catch (_: InvalidTokenException) {
-                    // Token ungueltig — Request bleibt unauthentifiziert, Spring Security gibt 401
+            if (companyId != null) {
+                // before the first DB access: everything below runs in this tenant
+                TenantContext.set(companyId)
+                if (!companyService.isEnabled(companyId)) {
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Company is disabled")
+                    return
+                }
+                authenticate(claims, request)
+                filterChain.doFilter(request, response)
+            } else {
+                // no tenant claim: public endpoints and SUPERADMIN run explicitly as root
+                TenantContext.runAsRoot {
+                    claims?.let { authenticate(it, request) }
+                    filterChain.doFilter(request, response)
                 }
             }
-
-            filterChain.doFilter(request, response)
         } finally {
-            previousTenant?.let { TenantContext.set(it) } ?: TenantContext.clear()
+            TenantContext.clear()
+            if (previousRoot) TenantContext.allowRoot()
+            previousTenant?.let { TenantContext.set(it) }
+        }
+    }
+
+    private fun validateOrNull(token: String) =
+        try {
+            jwtService.validateToken(token)
+        } catch (_: InvalidTokenException) {
+            // Token ungueltig — Request bleibt unauthentifiziert, Spring Security gibt 401
+            null
+        }
+
+    private fun authenticate(
+        claims: Claims,
+        request: HttpServletRequest,
+    ) {
+        val userDetails = userDetailsService.loadUserByUsername(claims.subject)
+        if (userDetails.isEnabled) {
+            val auth =
+                UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.authorities,
+                )
+            auth.details = WebAuthenticationDetailsSource().buildDetails(request)
+            SecurityContextHolder.getContext().authentication = auth
         }
     }
 

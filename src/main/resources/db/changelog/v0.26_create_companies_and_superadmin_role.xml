@@ -49,4 +49,29 @@
             <column name="description" value="Platform operator, sees all tenants"/>
         </insert>
     </changeSet>
+    <!-- idempotent: standalone installs used to seed these via code with random ids -->
+    <changeSet id="1775000000000-4" author="efehan">
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000010', 'ADMIN', 'Company administrator'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ADMIN')</sql>
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000011', 'PROJECTMANAGER', 'Project manager'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'PROJECTMANAGER')</sql>
+        <sql>INSERT INTO roles (id, name, description)
+             SELECT 'a0000000-0000-4000-8000-000000000012', 'EMPLOYER', 'Employer'
+             WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'EMPLOYER')</sql>
+    </changeSet>
+    <!-- anchor tenant for SUPERADMIN accounts: users.company_id is NOT NULL, but a
+         SUPERADMIN belongs to no customer company. The role keeps it out of the JWT. -->
+    <changeSet id="1775000000000-5" author="efehan">
+        <insert tableName="companies">
+            <column name="id" value="a0000000-0000-4000-8000-000000000003"/>
+            <column name="name" value="Platform"/>
+            <column name="street" value="n/a"/>
+            <column name="zip" value="n/a"/>
+            <column name="city" value="n/a"/>
+            <column name="country" value="DE"/>
+            <column name="is_enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
 </databaseChangeLog>

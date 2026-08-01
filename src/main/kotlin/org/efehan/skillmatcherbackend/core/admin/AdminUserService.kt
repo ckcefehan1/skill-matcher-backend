@@ -6,9 +6,11 @@ import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
+import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
+import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.data.domain.Page
@@ -32,6 +34,7 @@ class AdminUserService(
         email: String,
         roleName: String,
     ): UserModel {
+        requireAssignableRole(roleName)
         if (userRepository.existsByEmail(email)) {
             throw DuplicateEntryException(
                 resource = "User",
@@ -105,6 +108,7 @@ class AdminUserService(
         userId: String,
         roleName: String,
     ) {
+        requireAssignableRole(roleName)
         val user =
             userRepository.findByIdOrNull(userId)
                 ?: throw EntryNotFoundException(
@@ -135,5 +139,29 @@ class AdminUserService(
             targetId = user.id,
             detail = "$previousRole -> ${role.name}",
         )
+    }
+
+    /**
+     * A company ADMIN must never mint a SUPERADMIN: that role drops the companyId
+     * from the JWT and turns the next login into unfiltered root access.
+     */
+    private fun requireAssignableRole(roleName: String) {
+        if (roleName.uppercase() !in ASSIGNABLE_ROLES) {
+            throw AccessDeniedException(
+                resource = "Role",
+                errorCode = GlobalErrorCode.FORBIDDEN,
+                status = HttpStatus.FORBIDDEN,
+                message = "Role '$roleName' cannot be assigned by a company admin.",
+            )
+        }
+    }
+
+    private companion object {
+        val ASSIGNABLE_ROLES =
+            setOf(
+                RoleName.ADMIN.name,
+                RoleName.PROJECTMANAGER.name,
+                RoleName.EMPLOYER.name,
+            )
     }
 }

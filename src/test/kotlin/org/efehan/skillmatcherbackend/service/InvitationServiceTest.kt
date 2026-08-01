@@ -67,14 +67,8 @@ class InvitationServiceTest {
     @MockK
     private lateinit var clock: Clock
 
-    @MockK
-    private lateinit var companyRepository: org.efehan.skillmatcherbackend.persistence.CompanyRepository
-
-    @MockK
-    private lateinit var cacheManager: org.springframework.cache.CacheManager
-
-    @MockK
-    private lateinit var auditService: org.efehan.skillmatcherbackend.core.audit.AuditService
+    @MockK(relaxed = true)
+    private lateinit var eventPublisher: org.springframework.context.ApplicationEventPublisher
 
     @InjectMockKs
     private lateinit var invitationService: InvitationService

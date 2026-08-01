@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/public/companies")
 @Tag(name = "Company registration", description = "Public company self-registration (SaaS only).")
 class CompanyRegistrationController(
-    private val registrationService: CompanyRegistrationService,
+    private val companyService: CompanyService,
     private val standaloneProperties: StandaloneProperties,
 ) {
     @Operation(
@@ -27,19 +27,18 @@ class CompanyRegistrationController(
         description =
             "Creates a disabled company plus its first ADMIN and sends an invitation email. " +
                 "The company is activated when the invite is accepted. Always answered the same " +
-                "way, whether the email is already known or not.",
+                "way, whether the email or the company name is already taken or not.",
     )
     @ApiResponses(
         ApiResponse(responseCode = "202", description = "Registration accepted."),
         ApiResponse(responseCode = "400", description = "Validation error."),
         ApiResponse(responseCode = "404", description = "Not available in standalone mode."),
-        ApiResponse(responseCode = "409", description = "Company name already exists."),
         ApiResponse(responseCode = "429", description = "Rate limit exceeded."),
     )
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun register(
-        @Valid @RequestBody request: CreateCompanyRequest,
+        @Valid @RequestBody request: RegisterCompanyRequest,
     ) {
         // on-prem has exactly one company — self-registration is pointless and attack surface
         if (standaloneProperties.enabled) {
@@ -51,6 +50,6 @@ class CompanyRegistrationController(
                 status = HttpStatus.NOT_FOUND,
             )
         }
-        registrationService.register(request)
+        companyService.provision(request.toProvision())
     }
 }

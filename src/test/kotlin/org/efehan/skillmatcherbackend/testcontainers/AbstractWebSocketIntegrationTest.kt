@@ -113,24 +113,25 @@ abstract class AbstractWebSocketIntegrationTest {
     }
 
     protected fun cleanUp() {
-        TenantContext.clear()
-        notificationRepository.deleteAll()
-        chatMessageRepository.deleteAll()
-        conversationRepository.deleteAll()
-        projectMemberRepository.deleteAll()
-        projectSkillRepository.deleteAll()
-        projectRepository.deleteAll()
-        userAvailabilityRepository.deleteAll()
-        userSkillRepository.deleteAll()
-        skillRepository.deleteAll()
-        passwordResetTokenRepository.deleteAll()
-        invitationTokenRepository.deleteAll()
-        refreshTokenRepository.deleteAll()
-        userRepository.deleteAll()
-        roleRepository.deleteAll()
-        companyRepository.deleteAll()
+        TenantContext.runAsRoot {
+            notificationRepository.deleteAll()
+            chatMessageRepository.deleteAll()
+            conversationRepository.deleteAll()
+            projectMemberRepository.deleteAll()
+            projectSkillRepository.deleteAll()
+            projectRepository.deleteAll()
+            userAvailabilityRepository.deleteAll()
+            userSkillRepository.deleteAll()
+            skillRepository.deleteAll()
+            passwordResetTokenRepository.deleteAll()
+            invitationTokenRepository.deleteAll()
+            refreshTokenRepository.deleteAll()
+            userRepository.deleteAll()
+            roleRepository.deleteAll()
+            companyRepository.deleteAll()
 
-        companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
+            companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
+        }
         TenantContext.set(companyA.id)
     }
 

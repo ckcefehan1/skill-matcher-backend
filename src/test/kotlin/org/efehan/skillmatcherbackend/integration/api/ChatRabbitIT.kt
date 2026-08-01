@@ -89,15 +89,18 @@ class ChatRabbitIT {
     @BeforeEach
     fun cleanUp() {
         // cleanup runs unfiltered: deleteAll in a tenant context would miss the other tenant's rows
-        TenantContext.clear()
-        notificationRepository.deleteAll()
-        chatMessageRepository.deleteAll()
-        conversationRepository.deleteAll()
-        userRepository.deleteAll()
-        roleRepository.deleteAll()
-        companyRepository.deleteAll()
+        lateinit var company: org.efehan.skillmatcherbackend.persistence.CompanyModel
+        TenantContext.runAsRoot {
+            notificationRepository.deleteAll()
+            chatMessageRepository.deleteAll()
+            conversationRepository.deleteAll()
+            userRepository.deleteAll()
+            roleRepository.deleteAll()
+            companyRepository.deleteAll()
 
-        TenantContext.set(companyRepository.save(CompanyBuilder().build(name = "Rabbit GmbH")).id)
+            company = companyRepository.save(CompanyBuilder().build(name = "Rabbit GmbH"))
+        }
+        TenantContext.set(company.id)
     }
 
     @AfterEach
@@ -136,9 +139,11 @@ class ChatRabbitIT {
         // when — publishes after commit, travels through the broker, listener inserts the notification
         val message = chatService.sendMessage(alice, conversation.id, "Hallo über RabbitMQ")
 
-        // then
+        // then — awaitility polls on its own thread, which has no tenant bound
         await.atMost(Duration.ofSeconds(15)).until {
-            notificationRepository.existsByUserAndTypeAndReferenceId(bob, NotificationType.CHAT_MESSAGE, message.id)
+            TenantContext.runAsRoot {
+                notificationRepository.existsByUserAndTypeAndReferenceId(bob, NotificationType.CHAT_MESSAGE, message.id)
+            }
         }
         assertThat(notificationRepository.findAll()).hasSize(1)
         assertThat(dlqDepth()).isZero()

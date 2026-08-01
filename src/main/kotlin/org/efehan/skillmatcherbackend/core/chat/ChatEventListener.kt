@@ -15,7 +15,7 @@ class ChatEventListener(
     @RabbitListener(queues = ["\${rabbitmq.chat-queue}"], containerFactory = "eventRabbitListenerContainerFactory")
     fun handle(envelope: ChatEventEnvelope) {
         try {
-            envelope.companyId?.let { TenantContext.set(it) }
+            envelope.companyId?.let { TenantContext.set(it) } ?: TenantContext.allowRoot()
             dispatcher.dispatch(envelope.event)
         } finally {
             TenantContext.clear()

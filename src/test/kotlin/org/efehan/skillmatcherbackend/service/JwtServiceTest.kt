@@ -237,7 +237,7 @@ class JwtServiceTest {
         val token = jwtService.generateAccessToken(testUser)
         val claims = jwtService.validateToken(token)
 
-        val expectedKeys = setOf("sub", "userId", "role", "iss", "iat", "exp")
+        val expectedKeys = setOf("sub", "userId", "role", "companyId", "iss", "iat", "exp")
         assertEquals(expectedKeys, claims.keys)
     }
 

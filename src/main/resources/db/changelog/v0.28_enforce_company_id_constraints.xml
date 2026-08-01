@@ -6,8 +6,8 @@
         objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
     <!--
       Step 3 of 3: NOT NULL + FK + company_id index on every tenant-scoped table.
-      audit_logs / refresh_tokens / password_reset_tokens keep company_id nullable
-      (root contexts) and get no FK — zombie-company cleanup must not trip over them.
+      audit_logs keeps company_id nullable (root contexts) and gets no FK —
+      zombie-company cleanup must not trip over it.
     -->
     <changeSet id="1775200000000-1" author="efehan">
         <addNotNullConstraint tableName="users" columnName="company_id" columnDataType="VARCHAR(255)"/>

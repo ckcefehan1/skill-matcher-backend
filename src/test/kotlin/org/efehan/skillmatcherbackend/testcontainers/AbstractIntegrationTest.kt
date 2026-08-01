@@ -110,29 +110,30 @@ abstract class AbstractIntegrationTest {
     @BeforeEach
     fun cleanUp() {
         // cleanup runs unfiltered: deleteAll in a tenant context would miss the other tenant's rows
-        TenantContext.clear()
-        cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
-        auditLogRepository.deleteAll()
-        notificationRepository.deleteAll()
-        chatMessageRepository.deleteAll()
-        conversationRepository.deleteAll()
-        applicationRepository.deleteAll()
-        projectMemberRepository.deleteAll()
-        projectSkillRepository.deleteAll()
-        projectRepository.deleteAll()
-        userAvailabilityRepository.deleteAll()
-        userSkillRepository.deleteAll()
-        skillRelationRepository.deleteAll()
-        skillRepository.deleteAll()
-        passwordResetTokenRepository.deleteAll()
-        invitationTokenRepository.deleteAll()
-        refreshTokenRepository.deleteAll()
-        userRepository.deleteAll()
-        roleRepository.deleteAll()
-        companyRepository.deleteAll()
+        TenantContext.runAsRoot {
+            cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
+            auditLogRepository.deleteAll()
+            notificationRepository.deleteAll()
+            chatMessageRepository.deleteAll()
+            conversationRepository.deleteAll()
+            applicationRepository.deleteAll()
+            projectMemberRepository.deleteAll()
+            projectSkillRepository.deleteAll()
+            projectRepository.deleteAll()
+            userAvailabilityRepository.deleteAll()
+            userSkillRepository.deleteAll()
+            skillRelationRepository.deleteAll()
+            skillRepository.deleteAll()
+            passwordResetTokenRepository.deleteAll()
+            invitationTokenRepository.deleteAll()
+            refreshTokenRepository.deleteAll()
+            userRepository.deleteAll()
+            roleRepository.deleteAll()
+            companyRepository.deleteAll()
 
-        companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
-        companyB = companyRepository.save(CompanyBuilder().build(name = "Company B"))
+            companyA = companyRepository.save(CompanyBuilder().build(name = "Company A"))
+            companyB = companyRepository.save(CompanyBuilder().build(name = "Company B"))
+        }
         TenantContext.set(companyA.id)
     }
 
