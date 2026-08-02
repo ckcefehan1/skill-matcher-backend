@@ -56,10 +56,11 @@ class AdminUserServiceTest {
 
     @BeforeEach
     fun setUp() {
+        val userService = UserService(userRepository)
         adminUserService =
             AdminUserService(
-                UserService(userRepository),
-                RoleService(roleRepository),
+                userService,
+                RoleService(roleRepository, userService),
                 invitationService,
                 refreshTokenService,
                 auditService,

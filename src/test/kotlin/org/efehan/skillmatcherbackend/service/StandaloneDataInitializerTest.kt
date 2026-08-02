@@ -51,11 +51,12 @@ class StandaloneDataInitializerTest {
         every { userRepository.existsByEmail(any()) } returns false
         every { userRepository.save(any<UserModel>()) } answers { firstArg() }
 
+        val userService = UserService(userRepository)
         StandaloneDataInitializer(
             properties,
             companyRepository,
-            UserService(userRepository),
-            RoleService(roleRepository),
+            userService,
+            RoleService(roleRepository, userService),
             invitationService,
         ).run(mockk<ApplicationArguments>())
 
