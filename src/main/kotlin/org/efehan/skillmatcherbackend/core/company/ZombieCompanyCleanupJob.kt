@@ -3,9 +3,9 @@ package org.efehan.skillmatcherbackend.core.company
 import org.efehan.skillmatcherbackend.config.properties.InvitationProperties
 import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -24,7 +24,7 @@ import java.time.temporal.ChronoUnit
 @Component
 class ZombieCompanyCleanupJob(
     private val companyRepository: CompanyRepository,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val invitationTokenRepository: InvitationTokenRepository,
     private val invitationProperties: InvitationProperties,
     private val standaloneProperties: StandaloneProperties,
@@ -46,13 +46,13 @@ class ZombieCompanyCleanupJob(
             val zombies =
                 companyRepository
                     .findBySelfRegisteredTrueAndIsEnabledFalseAndCreatedDateBefore(cutoff)
-                    .filter { company -> userRepository.findAllByCompanyId(company.id).none { it.isEnabled } }
+                    .filter { company -> userService.listByCompany(company.id).none { it.isEnabled } }
 
             zombies.forEach { company ->
                 logger.info("Deleting zombie company '{}' ({})", company.name, company.id)
-                userRepository.findAllByCompanyId(company.id).forEach { user ->
+                userService.listByCompany(company.id).forEach { user ->
                     invitationTokenRepository.deleteByUser(user)
-                    userRepository.delete(user)
+                    userService.delete(user)
                 }
                 companyRepository.delete(company)
             }

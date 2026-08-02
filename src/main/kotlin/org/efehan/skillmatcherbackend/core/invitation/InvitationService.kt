@@ -6,13 +6,12 @@ import org.efehan.skillmatcherbackend.core.auth.AuthResponse
 import org.efehan.skillmatcherbackend.core.auth.AuthTokens
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
+import org.efehan.skillmatcherbackend.core.auth.RefreshTokenService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
@@ -26,14 +25,13 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.UUID
 
 @Service
 @Transactional
 class InvitationService(
     private val invitationTokenRepository: InvitationTokenRepository,
     private val userService: UserService,
-    private val refreshTokenRepository: RefreshTokenRepository,
+    private val refreshTokenService: RefreshTokenService,
     private val jwtService: JwtService,
     private val jwtProperties: JwtProperties,
     private val emailService: EmailService,
@@ -246,23 +244,9 @@ class InvitationService(
         invitation.used = true
         invitationTokenRepository.save(invitation)
 
-        val accessToken = jwtService.generateAccessToken(user)
-        val refreshToken = jwtService.generateOpaqueRefreshToken()
-        val refreshTokenHash = jwtService.hashToken(refreshToken)
-        val refreshTokenExpiration = Instant.now(clock).plusMillis(jwtProperties.refreshTokenExpiration)
-
-        refreshTokenRepository.save(
-            RefreshTokenModel(
-                tokenHash = refreshTokenHash,
-                user = user,
-                expiresAt = refreshTokenExpiration,
-                familyId = UUID.randomUUID().toString(),
-            ),
-        )
-
         return AuthTokens(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
+            accessToken = jwtService.generateAccessToken(user),
+            refreshToken = refreshTokenService.issue(user),
             response =
                 AuthResponse(
                     expiresIn = jwtProperties.accessTokenExpiration,

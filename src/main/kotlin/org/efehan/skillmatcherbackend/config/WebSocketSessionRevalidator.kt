@@ -1,7 +1,7 @@
 package org.efehan.skillmatcherbackend.config
 
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
-import org.efehan.skillmatcherbackend.persistence.UserRepository
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.messaging.simp.user.SimpUserRegistry
 import org.springframework.scheduling.annotation.Scheduled
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component
 class WebSocketSessionRevalidator(
     private val userRegistry: ObjectProvider<SimpUserRegistry>,
     private val sessionRegistry: WebSocketSessionRegistry,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
 ) {
     @Scheduled(fixedDelayString = "\${websocket.session-revalidation-interval}")
     fun revalidate() {
@@ -32,7 +32,7 @@ class WebSocketSessionRevalidator(
                 }
             if (snapshots.isEmpty()) return@runAsRoot
 
-            val current = userRepository.findAllById(snapshots.map { it.first }).associateBy { it.id }
+            val current = userService.findAllById(snapshots.map { it.first }).associateBy { it.id }
 
             snapshots.forEach { (userId, role) ->
                 val user = current[userId]

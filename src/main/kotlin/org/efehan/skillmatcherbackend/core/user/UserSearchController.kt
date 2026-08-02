@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
@@ -27,7 +26,7 @@ data class UserSearchResultDto(
 @RestController
 @Tag(name = "User Search", description = "Search users by name or email")
 class UserSearchController(
-    private val userRepo: UserRepository,
+    private val userService: UserService,
 ) {
     @Operation(
         summary = "Search employer users",
@@ -55,7 +54,7 @@ class UserSearchController(
         @RequestParam(required = false) q: String?,
         @PageableDefault(size = 20) pageable: Pageable,
     ): Page<UserSearchResultDto> =
-        userRepo.searchByRole("EMPLOYER", q ?: "", pageable).map {
+        userService.searchByRole("EMPLOYER", q ?: "", pageable).map {
             UserSearchResultDto(
                 id = it.id,
                 userName = "${it.firstName ?: ""} ${it.lastName ?: ""}".trim(),

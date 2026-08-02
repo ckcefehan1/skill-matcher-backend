@@ -17,7 +17,7 @@ class UserService(
     private val userRepo: UserRepository,
 ) {
     fun getUser(userId: String): UserModel =
-        userRepo.findByIdOrNull(userId)
+        findById(userId)
             ?: throw EntryNotFoundException(
                 resource = "User",
                 field = "id",
@@ -25,6 +25,10 @@ class UserService(
                 errorCode = GlobalErrorCode.USER_NOT_FOUND,
                 status = HttpStatus.NOT_FOUND,
             )
+
+    fun findById(userId: String): UserModel? = userRepo.findByIdOrNull(userId)
+
+    fun findAllById(userIds: Collection<String>): List<UserModel> = userRepo.findAllById(userIds)
 
     /** Null instead of a throw: the callers answer unknown emails like known ones to avoid an address oracle. */
     fun findByEmail(email: String): UserModel? = userRepo.findByEmail(email)
@@ -41,5 +45,13 @@ class UserService(
         pageable: Pageable,
     ): List<UserModel> = userRepo.searchChatPartners(q, excludedId, pageable)
 
+    fun searchByRole(
+        role: String,
+        q: String,
+        pageable: Pageable,
+    ): Page<UserModel> = userRepo.searchByRole(role, q, pageable)
+
     fun save(user: UserModel): UserModel = userRepo.save(user)
+
+    fun delete(user: UserModel) = userRepo.delete(user)
 }

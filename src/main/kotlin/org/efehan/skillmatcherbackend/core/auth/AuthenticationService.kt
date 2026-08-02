@@ -1,19 +1,15 @@
 package org.efehan.skillmatcherbackend.core.auth
 
-import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.config.properties.LoginLockoutProperties
 import org.efehan.skillmatcherbackend.core.audit.AuditService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.BadCredentialsException
@@ -26,20 +22,18 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 
 @Service
 @Transactional
 class AuthenticationService(
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
-    private val refreshTokenRepository: RefreshTokenRepository,
+    private val refreshTokenService: RefreshTokenService,
     private val jwtProperties: JwtProperties,
     private val loginLockoutProperties: LoginLockoutProperties,
     private val passwordEncoder: PasswordEncoder,
     private val passwordValidationService: PasswordValidationService,
-    private val sessionRegistry: WebSocketSessionRegistry,
     private val auditService: AuditService,
     transactionManager: PlatformTransactionManager,
     private val clock: Clock = Clock.systemUTC(),
@@ -54,7 +48,7 @@ class AuthenticationService(
         email: String,
         password: String,
     ): AuthTokens {
-        val user = userRepository.findByEmail(email)
+        val user = userService.findByEmail(email)
         if (user == null) {
             // Equalize timing with a real bcrypt comparison to avoid user enumeration
             passwordEncoder.matches(password, dummyBcryptHash)
@@ -88,47 +82,25 @@ class AuthenticationService(
         if (user.failedLoginAttempts > 0 || user.lockedUntil != null) {
             user.failedLoginAttempts = 0
             user.lockedUntil = null
-            userRepository.save(user)
+            userService.save(user)
         }
 
         auditService.record(AuditAction.LOGIN_SUCCEEDED, actor = user)
 
-        val accessToken = jwtService.generateAccessToken(user)
-
-        val refreshToken = jwtService.generateOpaqueRefreshToken()
-        val refreshTokenHash = jwtService.hashToken(refreshToken)
-
-        val refreshTokenExpiration = Instant.now(clock).plusMillis(jwtProperties.refreshTokenExpiration)
-        val accessTokenExpiration = jwtProperties.accessTokenExpiration
-
-        val refreshTokenModel =
-            RefreshTokenModel(
-                tokenHash = refreshTokenHash,
-                user = user,
-                expiresAt = refreshTokenExpiration,
-                familyId = UUID.randomUUID().toString(),
-                revoked = false,
-            )
-
-        refreshTokenRepository.save(refreshTokenModel)
-
         return AuthTokens(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
+            accessToken = jwtService.generateAccessToken(user),
+            refreshToken = refreshTokenService.issue(user),
             response =
                 AuthResponse(
-                    expiresIn = accessTokenExpiration,
+                    expiresIn = jwtProperties.accessTokenExpiration,
                     user = user.toAuthDTO(),
                 ),
         )
     }
 
     fun refreshToken(rawToken: String): AuthTokens {
-        val tokenHash = jwtService.hashToken(rawToken)
-        // findByTokenHash takes a pessimistic write lock — concurrent refreshes of the
-        // same token serialize here; the loser sees revoked=true and hits reuse detection
         val existingToken =
-            refreshTokenRepository.findByTokenHash(tokenHash) ?: throw InvalidTokenException(
+            refreshTokenService.findByRawToken(rawToken) ?: throw InvalidTokenException(
                 message = "Refresh token not found",
                 errorCode = GlobalErrorCode.REFRESH_TOKEN_NOT_FOUND,
                 status = HttpStatus.UNAUTHORIZED,
@@ -136,10 +108,7 @@ class AuthenticationService(
 
         // ponytail: strict reuse detection, no grace window — add one if parallel-tab logouts become a real problem
         if (existingToken.revoked) {
-            // must commit even though the refresh below rolls back with 401
-            requiresNewTx.executeWithoutResult {
-                refreshTokenRepository.revokeAllByFamilyId(existingToken.familyId)
-            }
+            refreshTokenService.revokeFamily(existingToken.familyId)
             throw InvalidTokenException(
                 message = "Refresh token reuse detected, token family revoked",
                 errorCode = GlobalErrorCode.INVALID_REFRESH_TOKEN,
@@ -156,12 +125,10 @@ class AuthenticationService(
         }
 
         val user = existingToken.user
-        val accessToken = jwtService.generateAccessToken(user)
-        val refreshToken = rotateRefreshToken(existingToken)
 
         return AuthTokens(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
+            accessToken = jwtService.generateAccessToken(user),
+            refreshToken = refreshTokenService.rotate(existingToken),
             response =
                 AuthResponse(
                     expiresIn = jwtProperties.accessTokenExpiration,
@@ -185,18 +152,15 @@ class AuthenticationService(
         passwordValidationService.validateOrThrow(newPassword)
 
         user.passwordHash = passwordEncoder.encode(newPassword)
-        userRepository.save(user)
+        userService.save(user)
 
-        refreshTokenRepository.revokeAllUserTokens(user.id)
-        sessionRegistry.disconnect(user.id)
+        refreshTokenService.revokeAllForUser(user.id)
 
         auditService.record(AuditAction.PASSWORD_CHANGED, actor = user)
     }
 
     fun logout(userId: String) {
-        refreshTokenRepository.revokeAllUserTokens(userId)
-        // a STOMP session authenticated before logout would otherwise keep receiving pushes forever
-        sessionRegistry.disconnect(userId)
+        refreshTokenService.revokeAllForUser(userId)
     }
 
     // Runs in its own transaction: login() rethrows BadCredentialsException right after,
@@ -206,7 +170,7 @@ class AuthenticationService(
         now: Instant,
     ) {
         requiresNewTx.executeWithoutResult {
-            val fresh = userRepository.findByIdOrNull(user.id) ?: return@executeWithoutResult
+            val fresh = userService.findById(user.id) ?: return@executeWithoutResult
             fresh.failedLoginAttempts += 1
             auditService.record(AuditAction.LOGIN_FAILED, actor = fresh)
             if (fresh.failedLoginAttempts >= loginLockoutProperties.maxFailedAttempts) {
@@ -214,23 +178,7 @@ class AuthenticationService(
                 fresh.failedLoginAttempts = 0
                 auditService.record(AuditAction.ACCOUNT_LOCKED, actor = fresh)
             }
-            userRepository.save(fresh)
+            userService.save(fresh)
         }
-    }
-
-    private fun rotateRefreshToken(oldToken: RefreshTokenModel): String {
-        oldToken.revoked = true
-
-        val newToken = jwtService.generateOpaqueRefreshToken()
-        val newTokenHash = jwtService.hashToken(newToken)
-        refreshTokenRepository.save(
-            RefreshTokenModel(
-                tokenHash = newTokenHash,
-                user = oldToken.user,
-                expiresAt = Instant.now(clock).plusMillis(jwtProperties.refreshTokenExpiration),
-                familyId = oldToken.familyId,
-            ),
-        )
-        return newToken
     }
 }

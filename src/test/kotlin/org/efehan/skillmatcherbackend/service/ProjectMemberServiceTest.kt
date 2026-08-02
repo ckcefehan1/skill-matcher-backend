@@ -11,13 +11,10 @@ import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
-import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectMemberBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.RoleBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
-import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
-import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
@@ -44,14 +41,28 @@ class ProjectMemberServiceTest {
     @MockK
     private lateinit var memberRepo: ProjectMemberRepository
 
-    @MockK
-    private lateinit var applicationRepo: ProjectApplicationRepository
-
     private lateinit var service: ProjectMemberService
 
     @BeforeEach
     fun setUp() {
-        service = ProjectMemberService(ProjectService(projectRepo), UserService(userRepo), memberRepo, applicationRepo)
+        service = ProjectMemberService(ProjectService(projectRepo), UserService(userRepo), memberRepo)
+    }
+
+    @Test
+    fun `isActiveMember is true only for an ACTIVE membership`() {
+        val user = UserBuilder().build(email = "member@firma.de", firstName = "Member", lastName = "User")
+        val project = ProjectBuilder().build(owner = UserBuilder().build())
+
+        every { memberRepo.findByProjectAndUser(project, user) } returns null
+        assertThat(service.isActiveMember(project, user)).isFalse()
+
+        every { memberRepo.findByProjectAndUser(project, user) } returns
+            ProjectMemberBuilder().build(project = project, user = user, status = ProjectMemberStatus.LEFT)
+        assertThat(service.isActiveMember(project, user)).isFalse()
+
+        every { memberRepo.findByProjectAndUser(project, user) } returns
+            ProjectMemberBuilder().build(project = project, user = user, status = ProjectMemberStatus.ACTIVE)
+        assertThat(service.isActiveMember(project, user)).isTrue()
     }
 
     @Test
@@ -66,10 +77,8 @@ class ProjectMemberServiceTest {
                 role = RoleBuilder().build(name = "EMPLOYER"),
             )
         val project = ProjectBuilder().build(owner = owner)
-        val acceptedApplication = ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED)
         every { projectRepo.findById(project.id) } returns Optional.of(project)
         every { userRepo.findById(member.id) } returns Optional.of(member)
-        every { applicationRepo.findByProjectAndUserAndStatus(project, member, ApplicationStatus.ACCEPTED) } returns acceptedApplication
         every { memberRepo.findByProjectAndUser(project, member) } returns null
         every { memberRepo.countByProjectAndStatus(project, ProjectMemberStatus.ACTIVE) } returns 2
         every { memberRepo.save(any()) } returnsArgument 0
@@ -148,10 +157,8 @@ class ProjectMemberServiceTest {
         val member = UserBuilder().build(email = "member@firma.de")
         val project = ProjectBuilder().build(owner = owner)
         val existingMember = ProjectMemberBuilder().build(project = project, user = member)
-        val acceptedApplication = ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED)
         every { projectRepo.findById(project.id) } returns Optional.of(project)
         every { userRepo.findById(member.id) } returns Optional.of(member)
-        every { applicationRepo.findByProjectAndUserAndStatus(project, member, ApplicationStatus.ACCEPTED) } returns acceptedApplication
         every { memberRepo.findByProjectAndUser(project, member) } returns existingMember
 
         // then
@@ -164,35 +171,14 @@ class ProjectMemberServiceTest {
     }
 
     @Test
-    fun `addMember throws AccessDeniedException without accepted application`() {
-        // given
-        val owner = UserBuilder().build(email = "owner@firma.de")
-        val member = UserBuilder().build(email = "member@firma.de")
-        val project = ProjectBuilder().build(owner = owner)
-        every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { userRepo.findById(member.id) } returns Optional.of(member)
-        every { applicationRepo.findByProjectAndUserAndStatus(project, member, ApplicationStatus.ACCEPTED) } returns null
-
-        // then
-        assertThatThrownBy { service.addMember(owner, project.id, member.id) }
-            .isInstanceOf(AccessDeniedException::class.java)
-            .satisfies({ ex ->
-                val e = ex as AccessDeniedException
-                assertThat(e.errorCode).isEqualTo(GlobalErrorCode.PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION)
-            })
-    }
-
-    @Test
     fun `addMember reactivates LEFT member`() {
         // given
         val owner = UserBuilder().build(email = "owner@firma.de")
         val member = UserBuilder().build(email = "member@firma.de")
         val project = ProjectBuilder().build(owner = owner)
         val leftMember = ProjectMemberBuilder().build(project = project, user = member, status = ProjectMemberStatus.LEFT)
-        val acceptedApplication = ProjectApplicationBuilder().build(project = project, user = member, status = ApplicationStatus.ACCEPTED)
         every { projectRepo.findById(project.id) } returns Optional.of(project)
         every { userRepo.findById(member.id) } returns Optional.of(member)
-        every { applicationRepo.findByProjectAndUserAndStatus(project, member, ApplicationStatus.ACCEPTED) } returns acceptedApplication
         every { memberRepo.findByProjectAndUser(project, member) } returns leftMember
 
         val savedSlot = slot<ProjectMemberModel>()
@@ -212,11 +198,8 @@ class ProjectMemberServiceTest {
         val owner = UserBuilder().build(email = "owner@firma.de")
         val member = UserBuilder().build(email = "member@firma.de")
         val fullProject = ProjectBuilder().build(name = "Full Project", description = "Full", maxMembers = 2, owner = owner)
-        val acceptedApplication =
-            ProjectApplicationBuilder().build(project = fullProject, user = member, status = ApplicationStatus.ACCEPTED)
         every { projectRepo.findById(fullProject.id) } returns Optional.of(fullProject)
         every { userRepo.findById(member.id) } returns Optional.of(member)
-        every { applicationRepo.findByProjectAndUserAndStatus(fullProject, member, ApplicationStatus.ACCEPTED) } returns acceptedApplication
         every { memberRepo.findByProjectAndUser(fullProject, member) } returns null
         every { memberRepo.countByProjectAndStatus(fullProject, ProjectMemberStatus.ACTIVE) } returns 2
 

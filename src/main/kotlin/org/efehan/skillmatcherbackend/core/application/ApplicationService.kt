@@ -10,8 +10,8 @@ import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationModel
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
+import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
+import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
@@ -29,7 +29,6 @@ import java.time.Instant
 class ApplicationService(
     private val applicationRepo: ProjectApplicationRepository,
     private val projectService: ProjectService,
-    private val memberRepo: ProjectMemberRepository,
     private val userService: UserService,
     private val memberService: ProjectMemberService,
     private val emailService: EmailService,
@@ -41,30 +40,7 @@ class ApplicationService(
         message: String?,
     ): ProjectApplicationModel {
         val project = projectService.getProject(projectId)
-
-        val existingMember = memberRepo.findByProjectAndUser(project, user)
-        if (existingMember != null && existingMember.status == ProjectMemberStatus.ACTIVE) {
-            throw DuplicateEntryException(
-                resource = "ProjectApplication",
-                field = "userId",
-                value = user.id,
-                errorCode = GlobalErrorCode.APPLICATION_FOR_MEMBER,
-                status = HttpStatus.CONFLICT,
-                message = "User is already an active member of this project.",
-            )
-        }
-
-        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null ||
-            applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.INVITED) != null
-        ) {
-            throw DuplicateEntryException(
-                resource = "ProjectApplication",
-                field = "userId",
-                value = user.id,
-                errorCode = GlobalErrorCode.APPLICATION_DUPLICATE,
-                status = HttpStatus.CONFLICT,
-            )
-        }
+        ensureOpenForNewApplication(project, user)
 
         val application =
             applicationRepo.save(
@@ -154,29 +130,7 @@ class ApplicationService(
             )
         }
         val user = userService.getUser(userId)
-
-        val existingMember = memberRepo.findByProjectAndUser(project, user)
-        if (existingMember != null && existingMember.status == ProjectMemberStatus.ACTIVE) {
-            throw DuplicateEntryException(
-                resource = "ProjectApplication",
-                field = "userId",
-                value = user.id,
-                errorCode = GlobalErrorCode.APPLICATION_FOR_MEMBER,
-                status = HttpStatus.CONFLICT,
-                message = "User is already an active member of this project.",
-            )
-        }
-        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null ||
-            applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.INVITED) != null
-        ) {
-            throw DuplicateEntryException(
-                resource = "ProjectApplication",
-                field = "userId",
-                value = user.id,
-                errorCode = GlobalErrorCode.APPLICATION_DUPLICATE,
-                status = HttpStatus.CONFLICT,
-            )
-        }
+        ensureOpenForNewApplication(project, user)
 
         val invitation =
             applicationRepo.save(
@@ -276,6 +230,31 @@ class ApplicationService(
         pageable: Pageable,
     ): Page<ProjectApplicationModel> = applicationRepo.findByUser(user, pageable)
 
+    /**
+     * The accepted application is the gate in front of every membership, so it is checked
+     * here and not in ProjectMemberService — that one must not know about applications,
+     * otherwise the two services depend on each other.
+     *
+     * Ownership resolves first, so a stranger never learns from the error code whether some
+     * user has an accepted application on a project that is none of their business.
+     */
+    fun addMember(
+        pm: UserModel,
+        projectId: String,
+        userId: String,
+    ): ProjectMemberModel {
+        val project = projectService.getProjectAsOwner(pm, projectId)
+        val user = userService.getUser(userId)
+        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.ACCEPTED) == null) {
+            throw AccessDeniedException(
+                resource = "ProjectMember",
+                errorCode = GlobalErrorCode.PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION,
+                status = HttpStatus.FORBIDDEN,
+            )
+        }
+        return memberService.addMember(pm, projectId, userId)
+    }
+
     private fun findApplicationOrThrow(applicationId: String) =
         applicationRepo.findByIdOrNull(applicationId)
             ?: throw EntryNotFoundException(
@@ -285,6 +264,34 @@ class ApplicationService(
                 errorCode = GlobalErrorCode.APPLICATION_NOT_FOUND,
                 status = HttpStatus.NOT_FOUND,
             )
+
+    /** An active membership or an already open application both block a new one. */
+    private fun ensureOpenForNewApplication(
+        project: ProjectModel,
+        user: UserModel,
+    ) {
+        if (memberService.isActiveMember(project, user)) {
+            throw DuplicateEntryException(
+                resource = "ProjectApplication",
+                field = "userId",
+                value = user.id,
+                errorCode = GlobalErrorCode.APPLICATION_FOR_MEMBER,
+                status = HttpStatus.CONFLICT,
+                message = "User is already an active member of this project.",
+            )
+        }
+        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.PENDING) != null ||
+            applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.INVITED) != null
+        ) {
+            throw DuplicateEntryException(
+                resource = "ProjectApplication",
+                field = "userId",
+                value = user.id,
+                errorCode = GlobalErrorCode.APPLICATION_DUPLICATE,
+                status = HttpStatus.CONFLICT,
+            )
+        }
+    }
 
     private fun ensurePmOwnsProject(
         pm: UserModel,

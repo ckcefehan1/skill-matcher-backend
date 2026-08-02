@@ -3,13 +3,11 @@ package org.efehan.skillmatcherbackend.core.projectmember
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
-import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
-import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
+import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.http.HttpStatus
@@ -23,8 +21,13 @@ class ProjectMemberService(
     private val projectService: ProjectService,
     private val userService: UserService,
     private val memberRepo: ProjectMemberRepository,
-    private val applicationRepo: ProjectApplicationRepository,
 ) {
+    @Transactional(readOnly = true)
+    fun isActiveMember(
+        project: ProjectModel,
+        user: UserModel,
+    ): Boolean = memberRepo.findByProjectAndUser(project, user)?.status == ProjectMemberStatus.ACTIVE
+
     fun addMember(
         owner: UserModel,
         projectId: String,
@@ -33,15 +36,6 @@ class ProjectMemberService(
         val project = projectService.getProjectAsOwner(owner, projectId)
 
         val user = userService.getUser(userId)
-
-        // nur nach angenommener Bewerbung hinzufügbar
-        if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.ACCEPTED) == null) {
-            throw AccessDeniedException(
-                resource = "ProjectMember",
-                errorCode = GlobalErrorCode.PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
 
         // bereits aktives Mitglied?
         memberRepo.findByProjectAndUser(project, user)?.let { existing ->

@@ -6,7 +6,6 @@ import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
 import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
 import org.efehan.skillmatcherbackend.persistence.SkillRelationType
-import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.cache.annotation.CacheEvict
@@ -19,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class SkillRelationService(
     private val skillRelationRepo: SkillRelationRepository,
-    private val skillRepo: SkillRepository,
+    private val skillService: SkillService,
 ) {
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
@@ -33,24 +32,8 @@ class SkillRelationService(
     ): SkillRelationModel {
         require(fromSkillId != toSkillId) { "A skill cannot be related to itself" }
 
-        val fromSkill =
-            skillRepo.findByIdOrNull(fromSkillId)
-                ?: throw EntryNotFoundException(
-                    resource = "Skill",
-                    field = "id",
-                    value = fromSkillId,
-                    errorCode = GlobalErrorCode.SKILL_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        val toSkill =
-            skillRepo.findByIdOrNull(toSkillId)
-                ?: throw EntryNotFoundException(
-                    resource = "Skill",
-                    field = "id",
-                    value = toSkillId,
-                    errorCode = GlobalErrorCode.SKILL_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val fromSkill = skillService.getSkill(fromSkillId)
+        val toSkill = skillService.getSkill(toSkillId)
 
         if (skillRelationRepo.existsByFromSkillAndToSkillAndRelationType(fromSkill, toSkill, relationType)) {
             throw DuplicateEntryException(
@@ -74,18 +57,7 @@ class SkillRelationService(
     }
 
     @Transactional(readOnly = true)
-    fun listBySkill(skillId: String): List<SkillRelationModel> {
-        val skill =
-            skillRepo.findByIdOrNull(skillId)
-                ?: throw EntryNotFoundException(
-                    resource = "Skill",
-                    field = "id",
-                    value = skillId,
-                    errorCode = GlobalErrorCode.SKILL_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        return skillRelationRepo.findBySkillIn(listOf(skill))
-    }
+    fun listBySkill(skillId: String): List<SkillRelationModel> = skillRelationRepo.findBySkillIn(listOf(skillService.getSkill(skillId)))
 
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],

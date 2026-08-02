@@ -13,6 +13,7 @@ import org.efehan.skillmatcherbackend.config.properties.InvitationProperties
 import org.efehan.skillmatcherbackend.config.properties.JwtProperties
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
+import org.efehan.skillmatcherbackend.core.auth.RefreshTokenService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.user.UserService
@@ -20,7 +21,6 @@ import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.junit.jupiter.api.BeforeEach
@@ -44,7 +44,7 @@ class InvitationServiceTest {
     private lateinit var userRepository: UserRepository
 
     @MockK
-    private lateinit var refreshTokenRepository: RefreshTokenRepository
+    private lateinit var refreshTokenService: RefreshTokenService
 
     @MockK
     private lateinit var jwtService: JwtService
@@ -78,7 +78,6 @@ class InvitationServiceTest {
         private const val TOKEN_HASH = "hashed-invitation-token"
         private const val ACCESS_TOKEN = "access-token-jwt"
         private const val REFRESH_TOKEN = "refresh-token-uuid"
-        private const val REFRESH_TOKEN_HASH = "hashed-refresh-token"
     }
 
     @BeforeEach
@@ -87,7 +86,7 @@ class InvitationServiceTest {
             InvitationService(
                 invitationTokenRepository,
                 UserService(userRepository),
-                refreshTokenRepository,
+                refreshTokenService,
                 jwtService,
                 jwtProperties,
                 emailService,
@@ -100,7 +99,6 @@ class InvitationServiceTest {
         every { clock.instant() } returns FIXED_INSTANT
         every { invitationProperties.tokenExpirationHours } returns 72L
         every { jwtProperties.accessTokenExpiration } returns 900_000L
-        every { jwtProperties.refreshTokenExpiration } returns 604_800_000L
     }
 
     @Test
@@ -237,9 +235,7 @@ class InvitationServiceTest {
         every { userRepository.save(user) } returns user
         every { invitationTokenRepository.save(invitation) } returns invitation
         every { jwtService.generateAccessToken(user) } returns ACCESS_TOKEN
-        every { jwtService.generateOpaqueRefreshToken() } returns REFRESH_TOKEN
-        every { jwtService.hashToken(REFRESH_TOKEN) } returns REFRESH_TOKEN_HASH
-        every { refreshTokenRepository.save(any()) } returnsArgument 0
+        every { refreshTokenService.issue(user) } returns REFRESH_TOKEN
 
         // when
         val result = invitationService.acceptInvitation(RAW_TOKEN, "NewPassword1!", "Max", "Mustermann")

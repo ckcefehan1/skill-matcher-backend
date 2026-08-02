@@ -8,6 +8,7 @@ import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.company.StandaloneDataInitializer
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.RoleModel
@@ -52,7 +53,7 @@ class StandaloneDataInitializerTest {
         StandaloneDataInitializer(
             properties,
             companyRepository,
-            userRepository,
+            UserService(userRepository),
             roleRepository,
             invitationService,
         ).run(mockk<ApplicationArguments>())

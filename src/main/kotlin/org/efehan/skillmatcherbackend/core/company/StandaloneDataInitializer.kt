@@ -4,12 +4,12 @@ import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional
 class StandaloneDataInitializer(
     private val standaloneProperties: StandaloneProperties,
     private val companyRepository: CompanyRepository,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val roleRepository: RoleRepository,
     private val invitationService: InvitationService,
 ) : ApplicationRunner {
@@ -76,7 +76,7 @@ class StandaloneDataInitializer(
         check(standaloneProperties.adminEmail.isNotBlank()) {
             "app.standalone.enabled=true requires app.standalone.admin-email"
         }
-        if (userRepository.existsByEmail(standaloneProperties.adminEmail)) return
+        if (userService.existsByEmail(standaloneProperties.adminEmail)) return
 
         val adminRole =
             roleRepository.findByName(RoleName.ADMIN.name)
@@ -91,7 +91,7 @@ class StandaloneDataInitializer(
                 lastName = null,
                 role = adminRole,
             ).apply { companyId = company.id }
-        userRepository.save(admin)
+        userService.save(admin)
         invitationService.createAndSendInvitation(admin)
     }
 }

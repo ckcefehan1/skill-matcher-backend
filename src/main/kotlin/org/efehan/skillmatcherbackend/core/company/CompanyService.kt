@@ -1,8 +1,8 @@
 package org.efehan.skillmatcherbackend.core.company
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
-import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.audit.AuditService
+import org.efehan.skillmatcherbackend.core.auth.RefreshTokenService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationAcceptedEvent
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.role.RoleService
@@ -12,7 +12,6 @@ import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
@@ -35,8 +34,7 @@ class CompanyService(
     private val userService: UserService,
     private val roleService: RoleService,
     private val invitationService: InvitationService,
-    private val refreshTokenRepository: RefreshTokenRepository,
-    private val sessionRegistry: WebSocketSessionRegistry,
+    private val refreshTokenService: RefreshTokenService,
     private val auditService: AuditService,
 ) {
     private val logger = LoggerFactory.getLogger(CompanyService::class.java)
@@ -155,10 +153,7 @@ class CompanyService(
 
         if (!enabled) {
             // same semantics as disabling a single user: kill tokens and live sessions
-            userService.listByCompany(companyId).forEach { user ->
-                refreshTokenRepository.revokeAllUserTokens(user.id)
-                sessionRegistry.disconnect(user.id)
-            }
+            userService.listByCompany(companyId).forEach { refreshTokenService.revokeAllForUser(it.id) }
         }
 
         auditService.record(

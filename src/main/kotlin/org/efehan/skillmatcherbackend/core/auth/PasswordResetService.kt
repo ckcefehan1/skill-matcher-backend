@@ -2,11 +2,10 @@ package org.efehan.skillmatcherbackend.core.auth
 
 import org.efehan.skillmatcherbackend.config.properties.PasswordResetProperties
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.PasswordResetTokenModel
 import org.efehan.skillmatcherbackend.persistence.PasswordResetTokenRepository
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -19,7 +18,7 @@ import java.time.Instant
 @Service
 @Transactional
 class PasswordResetService(
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val passwordResetTokenRepository: PasswordResetTokenRepository,
     private val jwtService: JwtService,
     private val emailService: EmailService,
@@ -27,12 +26,12 @@ class PasswordResetService(
     private val passwordValidationService: PasswordValidationService,
     private val passwordResetProperties: PasswordResetProperties,
     private val clock: Clock = Clock.systemUTC(),
-    private val refreshTokenRepository: RefreshTokenRepository,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     private val logger = LoggerFactory.getLogger(PasswordResetService::class.java)
 
     fun requestPasswordReset(email: String) {
-        val user = userRepository.findByEmail(email)
+        val user = userService.findByEmail(email)
 
         if (user == null) {
             // Log but don't reveal that the user doesn't exist
@@ -121,9 +120,9 @@ class PasswordResetService(
         // Update password
         val user = resetToken.user
         user.passwordHash = passwordEncoder.encode(newPassword)
-        userRepository.save(user)
+        userService.save(user)
 
-        refreshTokenRepository.revokeAllUserTokens(user.id)
+        refreshTokenService.revokeAllForUser(user.id)
 
         // Mark token as used
         resetToken.used = true

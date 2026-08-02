@@ -9,16 +9,15 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.admin.AdminUserService
 import org.efehan.skillmatcherbackend.core.audit.AuditService
+import org.efehan.skillmatcherbackend.core.auth.RefreshTokenService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.role.RoleService
 import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.RoleBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
-import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
@@ -48,10 +47,7 @@ class AdminUserServiceTest {
     private lateinit var invitationService: InvitationService
 
     @MockK
-    private lateinit var refreshTokenRepository: RefreshTokenRepository
-
-    @MockK(relaxed = true)
-    private lateinit var sessionRegistry: WebSocketSessionRegistry
+    private lateinit var refreshTokenService: RefreshTokenService
 
     @MockK(relaxed = true)
     private lateinit var auditService: AuditService
@@ -65,8 +61,7 @@ class AdminUserServiceTest {
                 UserService(userRepository),
                 RoleService(roleRepository),
                 invitationService,
-                refreshTokenRepository,
-                sessionRegistry,
+                refreshTokenService,
                 auditService,
             )
     }
@@ -165,7 +160,7 @@ class AdminUserServiceTest {
 
         every { userRepository.findById(user.id) } returns Optional.of(user)
         every { userRepository.save(any()) } returnsArgument 0
-        every { refreshTokenRepository.revokeAllUserTokens(user.id) } returns 2
+        every { refreshTokenService.revokeAllForUser(user.id) } just runs
 
         // when
         adminUserService.updateUserStatus(user.id, false)
@@ -173,7 +168,7 @@ class AdminUserServiceTest {
         // then
         assertThat(user.isEnabled).isFalse()
         verify(exactly = 1) { userRepository.save(user) }
-        verify(exactly = 1) { refreshTokenRepository.revokeAllUserTokens(user.id) }
+        verify(exactly = 1) { refreshTokenService.revokeAllForUser(user.id) }
     }
 
     @Test
@@ -190,7 +185,7 @@ class AdminUserServiceTest {
         // then
         assertThat(user.isEnabled).isTrue()
         verify(exactly = 1) { userRepository.save(user) }
-        verify(exactly = 0) { refreshTokenRepository.revokeAllUserTokens(any()) }
+        verify(exactly = 0) { refreshTokenService.revokeAllForUser(any()) }
     }
 
     @Test
@@ -248,7 +243,7 @@ class AdminUserServiceTest {
         every { userRepository.findById(user.id) } returns Optional.of(user)
         every { roleRepository.findByName("ADMIN") } returns newRole
         every { userRepository.save(any()) } returnsArgument 0
-        every { refreshTokenRepository.revokeAllUserTokens(user.id) } returns 1
+        every { refreshTokenService.revokeAllForUser(user.id) } just runs
 
         // when
         adminUserService.updateUserRole(user.id, "ADMIN")
@@ -256,7 +251,7 @@ class AdminUserServiceTest {
         // then
         assertThat(user.role).isEqualTo(newRole)
         verify(exactly = 1) { userRepository.save(user) }
-        verify(exactly = 1) { refreshTokenRepository.revokeAllUserTokens(user.id) }
+        verify(exactly = 1) { refreshTokenService.revokeAllForUser(user.id) }
     }
 
     @Test
@@ -268,7 +263,7 @@ class AdminUserServiceTest {
         every { userRepository.findById(user.id) } returns Optional.of(user)
         every { roleRepository.findByName("ADMIN") } returns newRole
         every { userRepository.save(any()) } returnsArgument 0
-        every { refreshTokenRepository.revokeAllUserTokens(user.id) } returns 1
+        every { refreshTokenService.revokeAllForUser(user.id) } just runs
 
         // when
         adminUserService.updateUserRole(user.id, "admin")

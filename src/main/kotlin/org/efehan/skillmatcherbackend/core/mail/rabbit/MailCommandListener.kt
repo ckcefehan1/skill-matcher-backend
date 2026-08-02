@@ -2,10 +2,10 @@ package org.efehan.skillmatcherbackend.core.mail.rabbit
 
 import org.efehan.skillmatcherbackend.core.mail.MailSender
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component
 @ConditionalOnProperty(name = ["mail.rabbitmq.enabled"], havingValue = "true")
 class MailCommandListener(
     private val mailSender: MailSender,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val projectRepository: ProjectRepository,
 ) {
     private val logger = LoggerFactory.getLogger(MailCommandListener::class.java)
@@ -93,7 +93,7 @@ class MailCommandListener(
         send(first, second, project)
     }
 
-    private fun user(id: String): UserModel? = userRepository.findById(id).orElse(null)
+    private fun user(id: String): UserModel? = userService.findById(id)
 
     private fun drop(
         type: String,
