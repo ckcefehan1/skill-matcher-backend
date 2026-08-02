@@ -105,10 +105,12 @@ class AdminUserService(
 
     /**
      * A company ADMIN must never mint a SUPERADMIN: that role drops the companyId
-     * from the JWT and turns the next login into unfiltered root access.
+     * from the JWT and turns the next login into unfiltered root access. Everything
+     * else in the catalog is the tenant's own, custom roles included — an unknown
+     * name is already a 404 from [RoleService].
      */
     private fun requireAssignableRole(roleName: String) {
-        if (roleName.uppercase() !in ASSIGNABLE_ROLES) {
+        if (roleName.uppercase() == RoleName.SUPERADMIN.name) {
             throw AccessDeniedException(
                 resource = "Role",
                 errorCode = GlobalErrorCode.FORBIDDEN,
@@ -116,14 +118,5 @@ class AdminUserService(
                 message = "Role '$roleName' cannot be assigned by a company admin.",
             )
         }
-    }
-
-    private companion object {
-        val ASSIGNABLE_ROLES =
-            setOf(
-                RoleName.ADMIN.name,
-                RoleName.PROJECTMANAGER.name,
-                RoleName.EMPLOYER.name,
-            )
     }
 }

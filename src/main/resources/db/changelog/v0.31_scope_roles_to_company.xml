@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <!--
+      Roles stop being global and become tenant-owned. Every company gets its own copy of the
+      shared catalog, every user is repointed at their company's copy, then the shared rows go.
+      Order matters: the DELETE would hit FK_USERS_ON_ROLE if the repoint had not run first.
+    -->
+    <changeSet id="1775300000000-1" author="efehan">
+        <addColumn tableName="roles">
+            <column name="company_id" type="VARCHAR(255)"/>
+        </addColumn>
+        <!-- has to go before the copies land, they duplicate every name across companies -->
+        <dropUniqueConstraint tableName="roles" constraintName="uc_roles_name"/>
+    </changeSet>
+    <changeSet id="1775300000000-2" author="efehan">
+        <!-- SUPERADMIN belongs to the platform anchor only; a customer tenant has no use for it.
+             The EXISTS keeps pre-v0.26 installs safe, where the superadmin was backfilled into
+             the Default Company and would otherwise lose its role. -->
+        <sql>
+            INSERT INTO roles (id, company_id, name, description, created_date, created_by, last_modified_by, last_modified_date)
+            SELECT gen_random_uuid()::text, c.id, r.name, r.description, r.created_date, r.created_by, r.last_modified_by, r.last_modified_date
+            FROM roles r
+            CROSS JOIN companies c
+            WHERE r.company_id IS NULL
+              AND (r.name &lt;&gt; 'SUPERADMIN'
+                   OR c.id = 'a0000000-0000-4000-8000-000000000003'
+                   OR EXISTS (SELECT 1 FROM users u WHERE u.company_id = c.id AND u.role_id = r.id))
+        </sql>
+    </changeSet>
+    <changeSet id="1775300000000-3" author="efehan">
+        <sql>
+            UPDATE users u
+            SET role_id = copy.id
+            FROM roles shared, roles copy
+            WHERE u.role_id = shared.id
+              AND shared.company_id IS NULL
+              AND copy.company_id = u.company_id
+              AND copy.name = shared.name
+        </sql>
+    </changeSet>
+    <changeSet id="1775300000000-4" author="efehan">
+        <delete tableName="roles">
+            <where>company_id IS NULL</where>
+        </delete>
+    </changeSet>
+    <changeSet id="1775300000000-5" author="efehan">
+        <addNotNullConstraint tableName="roles" columnName="company_id" columnDataType="VARCHAR(255)"/>
+        <addForeignKeyConstraint baseColumnNames="company_id" baseTableName="roles" constraintName="FK_ROLES_ON_COMPANY" referencedColumnNames="id" referencedTableName="companies"/>
+        <!-- its index leads with company_id, so no separate idx_roles_company_id is needed -->
+        <addUniqueConstraint columnNames="company_id, name" constraintName="uc_roles_company_name" tableName="roles"/>
+    </changeSet>
+</databaseChangeLog>

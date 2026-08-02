@@ -21,6 +21,11 @@ enum class GlobalErrorCode(
     // Duplicate entries
     DUPLICATE_ENTRY("A resource with the same unique value already exists."),
     USER_ALREADY_EXISTS("User already exists."),
+    ROLE_ALREADY_EXISTS("Role already exists."),
+
+    // Roles
+    ROLE_IN_USE("Role is still assigned to users."),
+    ROLE_IMMUTABLE("Built-in roles cannot be deleted."),
 
     // Not Found
     NOT_FOUND("A resource with the value could not be found."),

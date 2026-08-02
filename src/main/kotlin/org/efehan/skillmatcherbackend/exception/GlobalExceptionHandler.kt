@@ -3,6 +3,7 @@ package org.efehan.skillmatcherbackend.exception
 import jakarta.servlet.http.HttpServletRequest
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountDisabledException
 import org.efehan.skillmatcherbackend.shared.exceptions.AccountLockedException
+import org.efehan.skillmatcherbackend.shared.exceptions.ConflictException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidCredentialsException
@@ -85,6 +86,20 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
         logger.error(
             "DuplicateEntryException [${request.method} ${request.requestURI}] " +
                 "resource=${exception.resource}, field=${exception.field}, value=${exception.value}, errorCode=${exception.errorCode}",
+            exception,
+        )
+        val body = GlobalErrorCodeResponse(errorCode = exception.errorCode)
+        return ResponseEntity(body, exception.status)
+    }
+
+    @ExceptionHandler(ConflictException::class)
+    fun handleConflict(
+        exception: ConflictException,
+        request: HttpServletRequest,
+    ): ResponseEntity<GlobalErrorCodeResponse> {
+        logger.error(
+            "ConflictException [${request.method} ${request.requestURI}] " +
+                "resource=${exception.resource}, errorCode=${exception.errorCode}",
             exception,
         )
         val body = GlobalErrorCodeResponse(errorCode = exception.errorCode)

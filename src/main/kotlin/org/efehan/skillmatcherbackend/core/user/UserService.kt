@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.user
 
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -34,6 +35,8 @@ class UserService(
     fun findByEmail(email: String): UserModel? = userRepo.findByEmail(email)
 
     fun existsByEmail(email: String): Boolean = userRepo.existsByEmail(email)
+
+    fun existsByRole(role: RoleModel): Boolean = userRepo.existsByRole(role)
 
     fun listUsers(pageable: Pageable): Page<UserModel> = userRepo.findAll(pageable)
 

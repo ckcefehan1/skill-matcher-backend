@@ -56,7 +56,9 @@ class CacheTenantIT : AbstractIntegrationTest() {
 
         // when: tenant B looks up its own project with a same-shaped key
         TenantContext.set(companyB.id)
-        val pmB = userRepository.save(UserBuilder().build(email = "pm@firma-b.de", role = role))
+        // the role catalog is tenant-owned, so tenant B needs its own copy
+        val roleB = roleRepository.save(RoleModel("PROJECTMANAGER", null))
+        val pmB = userRepository.save(UserBuilder().build(email = "pm@firma-b.de", role = roleB))
         val projectB = projectRepository.save(ProjectBuilder().build(owner = pmB, name = "B Project"))
         projectSkillRepository.save(
             ProjectSkillModel(project = projectB, skill = skill, level = 3, priority = SkillPriority.MUST_HAVE),

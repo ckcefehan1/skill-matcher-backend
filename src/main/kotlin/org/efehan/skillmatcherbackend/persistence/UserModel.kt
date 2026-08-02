@@ -77,6 +77,8 @@ interface UserRepository : JpaRepository<UserModel, String> {
 
     fun existsByEmail(email: String): Boolean
 
+    fun existsByRole(role: RoleModel): Boolean
+
     fun findAllByCompanyId(companyId: String): List<UserModel>
 
     @Query(

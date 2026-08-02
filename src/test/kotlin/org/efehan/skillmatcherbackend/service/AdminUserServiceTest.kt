@@ -56,10 +56,11 @@ class AdminUserServiceTest {
 
     @BeforeEach
     fun setUp() {
+        val userService = UserService(userRepository)
         adminUserService =
             AdminUserService(
-                UserService(userRepository),
-                RoleService(roleRepository),
+                userService,
+                RoleService(roleRepository, userService),
                 invitationService,
                 refreshTokenService,
                 auditService,
@@ -112,7 +113,7 @@ class AdminUserServiceTest {
 
     @Test
     fun `createUser rejects SUPERADMIN with forbidden`() {
-        // the allowlist guards the privilege escalation: a company ADMIN must not
+        // the guard closes the privilege escalation: a company ADMIN must not
         // mint the role that turns the next login into unfiltered root access
         assertThatThrownBy {
             adminUserService.createUser("max.mustermann@firma.de", "SUPERADMIN")
@@ -126,11 +127,15 @@ class AdminUserServiceTest {
     }
 
     @Test
-    fun `createUser rejects unknown role with forbidden`() {
-        // unknown names fail the same allowlist — no lookup, no ROLE_NOT_FOUND oracle
+    fun `createUser rejects a role the company does not have`() {
+        // given: only SUPERADMIN is forbidden outright, everything else is looked up
+        every { userRepository.existsByEmail("max.mustermann@firma.de") } returns false
+        every { roleRepository.findByName("INVALID_ROLE") } returns null
+
+        // then
         assertThatThrownBy {
             adminUserService.createUser("max.mustermann@firma.de", "INVALID_ROLE")
-        }.isInstanceOf(AccessDeniedException::class.java)
+        }.isInstanceOf(EntryNotFoundException::class.java)
 
         verify(exactly = 0) { userRepository.save(any()) }
     }
@@ -298,11 +303,36 @@ class AdminUserServiceTest {
     }
 
     @Test
-    fun `updateUserRole rejects unknown role with forbidden`() {
+    fun `updateUserRole rejects a role the company does not have`() {
+        // given
+        val user = UserBuilder().build(email = "max@firma.de", role = RoleBuilder().build(name = "EMPLOYER"))
+
+        every { userRepository.findById(user.id) } returns Optional.of(user)
+        every { roleRepository.findByName("NONEXISTENT") } returns null
+
+        // then
         assertThatThrownBy {
-            adminUserService.updateUserRole("some-id", "NONEXISTENT")
-        }.isInstanceOf(AccessDeniedException::class.java)
+            adminUserService.updateUserRole(user.id, "NONEXISTENT")
+        }.isInstanceOf(EntryNotFoundException::class.java)
 
         verify(exactly = 0) { userRepository.save(any()) }
+    }
+
+    @Test
+    fun `updateUserRole assigns a custom role`() {
+        // given: a role the company created itself, so it is not in RoleName
+        val user = UserBuilder().build(email = "max@firma.de", role = RoleBuilder().build(name = "EMPLOYER"))
+        val auditor = RoleBuilder().build(name = "AUDITOR")
+
+        every { userRepository.findById(user.id) } returns Optional.of(user)
+        every { roleRepository.findByName("AUDITOR") } returns auditor
+        every { userRepository.save(any()) } returnsArgument 0
+        every { refreshTokenService.revokeAllForUser(user.id) } just runs
+
+        // when
+        adminUserService.updateUserRole(user.id, "AUDITOR")
+
+        // then
+        assertThat(user.role).isEqualTo(auditor)
     }
 }

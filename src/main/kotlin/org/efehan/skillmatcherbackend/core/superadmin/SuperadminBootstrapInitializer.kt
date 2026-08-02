@@ -37,13 +37,13 @@ class SuperadminBootstrapInitializer(
         TenantContext.runAsRoot {
             if (userService.existsByEmail(properties.email)) return@runAsRoot
 
-            val role =
-                roleService.findRole(RoleName.SUPERADMIN.name)
-                    ?: error("Role ${RoleName.SUPERADMIN.name} is missing — v0.26 seeds it")
             val platformCompany =
                 companyRepository.findById(PLATFORM_COMPANY_ID).orElseThrow {
                     IllegalStateException("Platform company is missing — v0.26 seeds it")
                 }
+            val role =
+                roleService.findRole(platformCompany.id, RoleName.SUPERADMIN.name)
+                    ?: error("Role ${RoleName.SUPERADMIN.name} is missing in the platform company — v0.31 seeds it")
 
             logger.info("Bootstrapping SUPERADMIN '{}'", properties.email)
             val superadmin =

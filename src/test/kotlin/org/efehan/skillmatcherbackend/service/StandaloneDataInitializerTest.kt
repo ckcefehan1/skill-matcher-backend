@@ -47,15 +47,16 @@ class StandaloneDataInitializerTest {
         val saved = slot<CompanyModel>()
         every { companyRepository.findAll() } returns listOf(platform)
         every { companyRepository.save(capture(saved)) } answers { saved.captured }
-        every { roleRepository.findByName(RoleName.ADMIN.name) } returns RoleModel(RoleName.ADMIN.name, null)
+        every { roleRepository.findByCompanyIdAndName(any(), any()) } returns RoleModel(RoleName.ADMIN.name, null)
         every { userRepository.existsByEmail(any()) } returns false
         every { userRepository.save(any<UserModel>()) } answers { firstArg() }
 
+        val userService = UserService(userRepository)
         StandaloneDataInitializer(
             properties,
             companyRepository,
-            UserService(userRepository),
-            RoleService(roleRepository),
+            userService,
+            RoleService(roleRepository, userService),
             invitationService,
         ).run(mockk<ApplicationArguments>())
 

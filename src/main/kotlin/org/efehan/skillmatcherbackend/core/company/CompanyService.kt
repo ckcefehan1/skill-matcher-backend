@@ -103,7 +103,9 @@ class CompanyService(
                 ),
             )
 
-        val adminRole = roleService.getRole(RoleName.ADMIN.name)
+        // the catalog is tenant-owned, so a brand-new company starts without one
+        roleService.seedDefaults(company.id)
+        val adminRole = roleService.getRole(company.id, RoleName.ADMIN.name)
 
         val admin =
             UserModel(

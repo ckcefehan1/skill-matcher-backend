@@ -82,9 +82,10 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `should return 403 when role is not assignable`() {
+    fun `should return 403 when admin tries to invite a SUPERADMIN`() {
         // given
         val role = roleRepository.save(RoleModel("ADMIN", null))
+        roleRepository.save(RoleModel("SUPERADMIN", null))
         val admin =
             userRepository.save(
                 UserModel(
@@ -96,7 +97,7 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 ).apply { isEnabled = true },
             )
         val token = jwtService.generateAccessToken(admin)
-        val request = AdminUserFixtures.buildCreateUserRequest(role = "NONEXISTENT")
+        val request = AdminUserFixtures.buildCreateUserRequest(role = "SUPERADMIN")
 
         // when & then
         mockMvc
@@ -553,8 +554,50 @@ class AdminUserControllerIT : AbstractIntegrationTest() {
                 withAuth(token)
                 withBodyRequest(request)
             }.andExpect {
-                status { isForbidden() }
+                status { isNotFound() }
             }
+    }
+
+    @Test
+    fun `should assign a custom role`() {
+        // given: a role the company created itself, so it is not in RoleName
+        val adminRole = roleRepository.save(RoleModel("ADMIN", null))
+        val admin =
+            userRepository.save(
+                UserModel(
+                    email = "admin@firma.de",
+                    passwordHash = passwordEncoder.encode("Admin-Password1!"),
+                    firstName = "Admin",
+                    lastName = "User",
+                    role = adminRole,
+                ).apply { isEnabled = true },
+            )
+        val token = jwtService.generateAccessToken(admin)
+        val employerRole = roleRepository.save(RoleModel("EMPLOYER", null))
+        roleRepository.save(RoleModel("AUDITOR", "Reads the audit log"))
+        val user =
+            userRepository.save(
+                UserModel(
+                    email = "max@firma.de",
+                    passwordHash = passwordEncoder.encode("Test-Password1!"),
+                    firstName = "Max",
+                    lastName = "Mustermann",
+                    role = employerRole,
+                ).apply { isEnabled = true },
+            )
+
+        // when
+        mockMvc
+            .patch("/api/admin/users/${user.id}/role") {
+                withAuth(token)
+                withBodyRequest(AdminUserFixtures.buildUpdateUserRoleRequest(role = "AUDITOR"))
+            }.andExpect {
+                status { isNoContent() }
+            }
+
+        // then
+        val updatedUser = userRepository.findById(user.id).get()
+        assertThat(updatedUser.role.name).isEqualTo("AUDITOR")
     }
 
     @Test

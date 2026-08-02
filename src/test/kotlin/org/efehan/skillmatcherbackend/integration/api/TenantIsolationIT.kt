@@ -32,21 +32,23 @@ class TenantIsolationIT : AbstractIntegrationTest() {
     @Autowired
     private lateinit var adminUserService: AdminUserService
 
+    // the role catalog is tenant-owned, so each tenant needs its own copy of the name
+    private fun role(name: String): RoleModel = roleRepository.findByName(name) ?: roleRepository.save(RoleModel(name, null))
+
     private fun createUser(
         email: String,
-        role: RoleModel,
+        roleName: String,
     ): UserModel =
         userRepository.save(
-            UserBuilder().build(email = email, role = role),
+            UserBuilder().build(email = email, role = role(roleName)),
         )
 
     @Test
     fun `admin user list does not leak across tenants`() {
         // given
-        val role = roleRepository.save(RoleModel("ADMIN", null))
-        val userA = createUser("a@firma-a.de", role)
+        val userA = createUser("a@firma-a.de", "ADMIN")
         TenantContext.set(companyB.id)
-        createUser("b@firma-b.de", role)
+        createUser("b@firma-b.de", "ADMIN")
 
         // when/then: B sees only its own user
         assertThat(adminUserService.listUsers(PageRequest.of(0, 10)).map { it.email })
@@ -61,15 +63,14 @@ class TenantIsolationIT : AbstractIntegrationTest() {
     @Test
     fun `project service does not leak across tenants`() {
         // given
-        val role = roleRepository.save(RoleModel("PROJECTMANAGER", null))
-        val pmA = createUser("pm-a@firma-a.de", role)
+        val pmA = createUser("pm-a@firma-a.de", "PROJECTMANAGER")
         val projectA =
             projectRepository.save(
                 ProjectBuilder().build(owner = pmA, name = "Project A"),
             )
 
         TenantContext.set(companyB.id)
-        val pmB = createUser("pm-b@firma-b.de", role)
+        val pmB = createUser("pm-b@firma-b.de", "PROJECTMANAGER")
         projectRepository.save(
             ProjectBuilder().build(owner = pmB, name = "Project B"),
         )
@@ -90,11 +91,10 @@ class TenantIsolationIT : AbstractIntegrationTest() {
     @Test
     fun `chat partner search does not leak across tenants`() {
         // given
-        val role = roleRepository.save(RoleModel("EMPLOYER", null))
-        val userA = createUser("anna@firma-a.de", role)
-        userRepository.save(UserBuilder().build(email = "andre@firma-a.de", firstName = "Andre", role = role))
+        val userA = createUser("anna@firma-a.de", "EMPLOYER")
+        userRepository.save(UserBuilder().build(email = "andre@firma-a.de", firstName = "Andre", role = role("EMPLOYER")))
         TenantContext.set(companyB.id)
-        val userB = createUser("berta@firma-b.de", role)
+        val userB = createUser("berta@firma-b.de", "EMPLOYER")
 
         // when/then
         assertThat(chatService.searchChatPartners(userB, "andr", 10)).isEmpty()
@@ -107,10 +107,9 @@ class TenantIsolationIT : AbstractIntegrationTest() {
     @Test
     fun `explicit root context sees all tenants`() {
         // given
-        val role = roleRepository.save(RoleModel("EMPLOYER", null))
-        createUser("a@firma-a.de", role)
+        createUser("a@firma-a.de", "EMPLOYER")
         TenantContext.set(companyB.id)
-        createUser("b@firma-b.de", role)
+        createUser("b@firma-b.de", "EMPLOYER")
 
         // when/then: only the explicitly declared root context is unfiltered
         TenantContext.runAsRoot {
