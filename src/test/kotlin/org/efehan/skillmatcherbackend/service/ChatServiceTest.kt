@@ -1,7 +1,6 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.slot
@@ -12,6 +11,7 @@ import org.efehan.skillmatcherbackend.core.chat.ChatEvent
 import org.efehan.skillmatcherbackend.core.chat.ChatEventPublisher
 import org.efehan.skillmatcherbackend.core.chat.ChatService
 import org.efehan.skillmatcherbackend.core.chat.TypingResponse
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ChatMessageBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ConversationBuilder
@@ -22,6 +22,7 @@ import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -48,8 +49,13 @@ class ChatServiceTest {
     @MockK(relaxed = true)
     private lateinit var chatEventPublisher: ChatEventPublisher
 
-    @InjectMockKs
     private lateinit var chatService: ChatService
+
+    @BeforeEach
+    fun setUp() {
+        chatService =
+            ChatService(conversationRepo, messageRepo, userRepo, UserService(userRepo), messagingTemplate, chatEventPublisher)
+    }
 
     @Test
     fun `getConversations returns conversations for user`() {

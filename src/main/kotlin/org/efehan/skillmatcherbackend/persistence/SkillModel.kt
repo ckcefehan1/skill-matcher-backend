@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
-import java.util.UUID
 
 @Entity
 @Table(name = "skills")
@@ -39,13 +38,4 @@ interface SkillRepository : JpaRepository<SkillModel, String> {
         @Param("id") id: String,
         @Param("name") name: String,
     )
-
-    /** Two requests can add the same unknown skill at once; the unique index on name decides the winner. */
-    fun findOrCreate(rawName: String): SkillModel {
-        val name = rawName.trim().lowercase()
-        return findByNameIgnoreCase(name) ?: run {
-            insertIfAbsent(UUID.randomUUID().toString(), name)
-            checkNotNull(findByNameIgnoreCase(name))
-        }
-    }
 }

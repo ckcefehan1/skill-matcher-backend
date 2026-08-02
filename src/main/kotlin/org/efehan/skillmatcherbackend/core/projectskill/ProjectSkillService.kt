@@ -2,11 +2,11 @@ package org.efehan.skillmatcherbackend.core.projectskill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.core.project.ProjectService
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillModel
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillRepository
 import org.efehan.skillmatcherbackend.persistence.SkillPriority
-import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class ProjectSkillService(
     private val projectService: ProjectService,
-    private val skillRepo: SkillRepository,
+    private val skillService: SkillService,
     private val projectSkillRepo: ProjectSkillRepository,
 ) {
     @CacheEvict(
@@ -41,7 +41,7 @@ class ProjectSkillService(
             } ?: throw IllegalArgumentException("Priority must be MUST_HAVE or NICE_TO_HAVE")
 
         val project = projectService.getProjectAsOwner(user, projectId)
-        val skill = skillRepo.findOrCreate(name)
+        val skill = skillService.findOrCreate(name)
 
         val existing = projectSkillRepo.findByProjectAndSkillId(project, skill.id)
 

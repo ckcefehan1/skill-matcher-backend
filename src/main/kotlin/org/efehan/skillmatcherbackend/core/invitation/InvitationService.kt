@@ -7,6 +7,7 @@ import org.efehan.skillmatcherbackend.core.auth.AuthTokens
 import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
@@ -14,7 +15,6 @@ import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
-import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -34,6 +34,7 @@ import java.util.UUID
 class InvitationService(
     private val invitationTokenRepository: InvitationTokenRepository,
     private val userRepository: UserRepository,
+    private val userService: UserService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtService: JwtService,
     private val jwtProperties: JwtProperties,
@@ -278,16 +279,7 @@ class InvitationService(
      * their is_enabled in this transaction.
      */
     fun resendInvitation(userId: String) {
-        val user =
-            userRepository.findById(userId).orElseThrow {
-                EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-            }
+        val user = userService.getUser(userId)
 
         logger.info("Resending invitation for userId={}", userId)
         createAndSendInvitation(user)

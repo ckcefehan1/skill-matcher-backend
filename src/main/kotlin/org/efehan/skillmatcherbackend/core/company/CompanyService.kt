@@ -5,6 +5,7 @@ import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationAcceptedEvent
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.role.RoleService
 import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
@@ -12,7 +13,6 @@ import org.efehan.skillmatcherbackend.persistence.CompanyModel
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
-import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional
 class CompanyService(
     private val companyRepository: CompanyRepository,
     private val userRepository: UserRepository,
-    private val roleRepository: RoleRepository,
+    private val roleService: RoleService,
     private val invitationService: InvitationService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val sessionRegistry: WebSocketSessionRegistry,
@@ -105,15 +105,7 @@ class CompanyService(
                 ),
             )
 
-        val adminRole =
-            roleRepository.findByName(RoleName.ADMIN.name)
-                ?: throw EntryNotFoundException(
-                    resource = "Role",
-                    field = "name",
-                    value = RoleName.ADMIN.name,
-                    errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val adminRole = roleService.getRole(RoleName.ADMIN.name)
 
         val admin =
             UserModel(

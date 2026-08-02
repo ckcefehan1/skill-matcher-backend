@@ -8,6 +8,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectskill.ProjectSkillService
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectSkillBuilder
@@ -41,7 +42,7 @@ class ProjectSkillServiceTest {
 
     @BeforeEach
     fun setUp() {
-        projectSkillService = ProjectSkillService(ProjectService(projectRepo), skillRepo, projectSkillRepo)
+        projectSkillService = ProjectSkillService(ProjectService(projectRepo), SkillService(skillRepo), projectSkillRepo)
     }
 
     @Test
@@ -51,7 +52,7 @@ class ProjectSkillServiceTest {
         val project = ProjectBuilder().build(owner = owner)
         val skill = SkillBuilder().build(name = "kotlin")
         every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { skillRepo.findOrCreate("Kotlin") } returns skill
+        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
         every { projectSkillRepo.findByProjectAndSkillId(project, skill.id) } returns null
         every { projectSkillRepo.save(any()) } returnsArgument 0
 
@@ -74,7 +75,7 @@ class ProjectSkillServiceTest {
         val skill = SkillBuilder().build(name = "kotlin")
         val existingProjectSkill = ProjectSkillBuilder().build(project = project, skill = skill, level = 2)
         every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { skillRepo.findOrCreate("Kotlin") } returns skill
+        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
         every { projectSkillRepo.findByProjectAndSkillId(project, skill.id) } returns existingProjectSkill
         every { projectSkillRepo.save(any()) } returnsArgument 0
 

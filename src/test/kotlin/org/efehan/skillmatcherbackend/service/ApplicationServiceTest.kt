@@ -12,6 +12,7 @@ import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
@@ -73,7 +74,7 @@ class ApplicationServiceTest {
                 applicationRepo = applicationRepo,
                 projectService = ProjectService(projectRepo),
                 memberRepo = memberRepo,
-                userRepo = userRepo,
+                userService = UserService(userRepo),
                 memberService = memberService,
                 emailService = emailService,
                 auditService = auditService,

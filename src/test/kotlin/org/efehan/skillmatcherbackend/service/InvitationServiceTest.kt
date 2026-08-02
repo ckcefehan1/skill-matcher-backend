@@ -1,7 +1,6 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.just
@@ -16,6 +15,7 @@ import org.efehan.skillmatcherbackend.core.auth.JwtService
 import org.efehan.skillmatcherbackend.core.auth.PasswordValidationService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.InvitationTokenModel
@@ -70,7 +70,6 @@ class InvitationServiceTest {
     @MockK(relaxed = true)
     private lateinit var eventPublisher: org.springframework.context.ApplicationEventPublisher
 
-    @InjectMockKs
     private lateinit var invitationService: InvitationService
 
     companion object {
@@ -84,6 +83,21 @@ class InvitationServiceTest {
 
     @BeforeEach
     fun setUp() {
+        invitationService =
+            InvitationService(
+                invitationTokenRepository,
+                userRepository,
+                UserService(userRepository),
+                refreshTokenRepository,
+                jwtService,
+                jwtProperties,
+                emailService,
+                invitationProperties,
+                passwordEncoder,
+                passwordValidationService,
+                clock,
+                eventPublisher,
+            )
         every { clock.instant() } returns FIXED_INSTANT
         every { invitationProperties.tokenExpirationHours } returns 72L
         every { jwtProperties.accessTokenExpiration } returns 900_000L

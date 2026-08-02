@@ -3,19 +3,18 @@ package org.efehan.skillmatcherbackend.core.admin
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.role.RoleService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
-import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
-import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class AdminUserService(
     private val userRepository: UserRepository,
-    private val roleRepository: RoleRepository,
+    private val userService: UserService,
+    private val roleService: RoleService,
     private val invitationService: InvitationService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val sessionRegistry: WebSocketSessionRegistry,
@@ -45,15 +45,7 @@ class AdminUserService(
             )
         }
 
-        val role =
-            roleRepository.findByName(roleName.uppercase())
-                ?: throw EntryNotFoundException(
-                    resource = "Role",
-                    field = "name",
-                    value = roleName,
-                    errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val role = roleService.getRole(roleName)
 
         val user =
             UserModel(
@@ -78,15 +70,7 @@ class AdminUserService(
         userId: String,
         enabled: Boolean,
     ) {
-        val user =
-            userRepository.findByIdOrNull(userId)
-                ?: throw EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val user = userService.getUser(userId)
         user.isEnabled = enabled
         userRepository.save(user)
 
@@ -109,25 +93,8 @@ class AdminUserService(
         roleName: String,
     ) {
         requireAssignableRole(roleName)
-        val user =
-            userRepository.findByIdOrNull(userId)
-                ?: throw EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-
-        val role =
-            roleRepository.findByName(roleName.uppercase())
-                ?: throw EntryNotFoundException(
-                    resource = "Role",
-                    field = "name",
-                    value = roleName,
-                    errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val user = userService.getUser(userId)
+        val role = roleService.getRole(roleName)
 
         val previousRole = user.role.name
         user.role = role

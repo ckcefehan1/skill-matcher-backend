@@ -9,6 +9,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
@@ -50,7 +51,7 @@ class ProjectMemberServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = ProjectMemberService(ProjectService(projectRepo), userRepo, memberRepo, applicationRepo)
+        service = ProjectMemberService(ProjectService(projectRepo), UserService(userRepo), memberRepo, applicationRepo)
     }
 
     @Test

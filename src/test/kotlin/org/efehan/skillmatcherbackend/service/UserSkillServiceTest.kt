@@ -1,12 +1,12 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.core.skill.UserSkillService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.SkillBuilder
@@ -16,12 +16,10 @@ import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
 import java.util.Optional
 
 @ExtendWith(MockKExtension::class)
@@ -33,15 +31,19 @@ class UserSkillServiceTest {
     @MockK
     private lateinit var userSkillRepo: UserSkillRepository
 
-    @InjectMockKs
     private lateinit var userSkillService: UserSkillService
+
+    @BeforeEach
+    fun setUp() {
+        userSkillService = UserSkillService(SkillService(skillRepo), userSkillRepo)
+    }
 
     @Test
     fun `addOrUpdateSkill creates new skill and user skill`() {
         // given
         val user = UserBuilder().build()
         val skill = SkillBuilder().build(name = "kotlin")
-        every { skillRepo.findOrCreate("Kotlin") } returns skill
+        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
         every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns null
         every { userSkillRepo.save(any()) } returnsArgument 0
 
@@ -61,7 +63,7 @@ class UserSkillServiceTest {
         val user = UserBuilder().build()
         val skill = SkillBuilder().build(name = "kotlin")
         val existingUserSkill = UserSkillBuilder().build(user = user, skill = skill, level = 2)
-        every { skillRepo.findOrCreate("Kotlin") } returns skill
+        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
         every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns existingUserSkill
         every { userSkillRepo.save(any()) } returnsArgument 0
 
@@ -97,39 +99,6 @@ class UserSkillServiceTest {
         }.isInstanceOf(IllegalArgumentException::class.java)
 
         verify(exactly = 0) { userSkillRepo.save(any()) }
-    }
-
-    @Test
-    fun `getAllSkills returns all skills`() {
-        // given
-        val skills =
-            listOf(
-                SkillBuilder().build(name = "kotlin"),
-                SkillBuilder().build(name = "java"),
-                SkillBuilder().build(name = "spring"),
-            )
-        every { skillRepo.findAll(any<Pageable>()) } returns PageImpl(skills)
-
-        // when
-        val result = userSkillService.getAllSkills(PageRequest.of(0, 20))
-
-        // then
-        assertThat(result.content).hasSize(3)
-        assertThat(result.content[0].name).isEqualTo("kotlin")
-        assertThat(result.content[1].name).isEqualTo("java")
-        assertThat(result.content[2].name).isEqualTo("spring")
-    }
-
-    @Test
-    fun `getAllSkills returns empty list when no skills exist`() {
-        // given
-        every { skillRepo.findAll(any<Pageable>()) } returns PageImpl(emptyList())
-
-        // when
-        val result = userSkillService.getAllSkills(PageRequest.of(0, 20))
-
-        // then
-        assertThat(result.content).isEmpty()
     }
 
     @Test

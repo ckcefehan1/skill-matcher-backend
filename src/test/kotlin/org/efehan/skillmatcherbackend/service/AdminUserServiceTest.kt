@@ -1,7 +1,6 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.just
@@ -14,6 +13,8 @@ import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.core.admin.AdminUserService
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.role.RoleService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.RoleBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
@@ -24,6 +25,7 @@ import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -54,8 +56,21 @@ class AdminUserServiceTest {
     @MockK(relaxed = true)
     private lateinit var auditService: AuditService
 
-    @InjectMockKs
     private lateinit var adminUserService: AdminUserService
+
+    @BeforeEach
+    fun setUp() {
+        adminUserService =
+            AdminUserService(
+                userRepository,
+                UserService(userRepository),
+                RoleService(roleRepository),
+                invitationService,
+                refreshTokenRepository,
+                sessionRegistry,
+                auditService,
+            )
+    }
 
     @Test
     fun `createUser successfully creates user and sends invitation`() {

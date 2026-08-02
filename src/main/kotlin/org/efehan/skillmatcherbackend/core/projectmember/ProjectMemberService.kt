@@ -1,6 +1,7 @@
 package org.efehan.skillmatcherbackend.core.projectmember
 
 import org.efehan.skillmatcherbackend.core.project.ProjectService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
@@ -8,11 +9,9 @@ import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -22,7 +21,7 @@ import java.time.Instant
 @Transactional
 class ProjectMemberService(
     private val projectService: ProjectService,
-    private val userRepo: UserRepository,
+    private val userService: UserService,
     private val memberRepo: ProjectMemberRepository,
     private val applicationRepo: ProjectApplicationRepository,
 ) {
@@ -33,15 +32,7 @@ class ProjectMemberService(
     ): ProjectMemberModel {
         val project = projectService.getProjectAsOwner(owner, projectId)
 
-        val user =
-            userRepo.findByIdOrNull(userId)
-                ?: throw EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val user = userService.getUser(userId)
 
         // nur nach angenommener Bewerbung hinzufügbar
         if (applicationRepo.findByProjectAndUserAndStatus(project, user, ApplicationStatus.ACCEPTED) == null) {
@@ -102,15 +93,7 @@ class ProjectMemberService(
     ) {
         val project = projectService.getProjectAsOwner(owner, projectId)
 
-        val user =
-            userRepo.findByIdOrNull(userId)
-                ?: throw EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val user = userService.getUser(userId)
         val member =
             memberRepo.findByProjectAndUser(project, user)
                 ?: throw EntryNotFoundException(

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/skills")
 @Tag(name = "Skills", description = "Global skill catalog")
 class SkillController(
-    private val service: UserSkillService,
+    private val service: SkillService,
 ) {
     @Operation(
         summary = "Get all skills",

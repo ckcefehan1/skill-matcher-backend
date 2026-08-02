@@ -4,6 +4,7 @@ import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.AuditAction
@@ -12,7 +13,6 @@ import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -30,7 +30,7 @@ class ApplicationService(
     private val applicationRepo: ProjectApplicationRepository,
     private val projectService: ProjectService,
     private val memberRepo: ProjectMemberRepository,
-    private val userRepo: UserRepository,
+    private val userService: UserService,
     private val memberService: ProjectMemberService,
     private val emailService: EmailService,
     private val auditService: AuditService,
@@ -153,15 +153,7 @@ class ApplicationService(
                 status = HttpStatus.FORBIDDEN,
             )
         }
-        val user =
-            userRepo.findByIdOrNull(userId)
-                ?: throw EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = userId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
+        val user = userService.getUser(userId)
 
         val existingMember = memberRepo.findByProjectAndUser(project, user)
         if (existingMember != null && existingMember.status == ProjectMemberStatus.ACTIVE) {

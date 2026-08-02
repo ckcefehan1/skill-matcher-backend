@@ -1,5 +1,6 @@
 package org.efehan.skillmatcherbackend.core.chat
 
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ChatMessageModel
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
@@ -22,6 +23,7 @@ class ChatService(
     private val conversationRepo: ConversationRepository,
     private val messageRepo: ChatMessageRepository,
     private val userRepo: UserRepository,
+    private val userService: UserService,
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatEventPublisher: ChatEventPublisher,
 ) {
@@ -83,16 +85,7 @@ class ChatService(
             throw IllegalArgumentException("Cannot create a conversation with yourself.")
         }
 
-        val partner =
-            userRepo.findById(partnerId).orElseThrow {
-                EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = partnerId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-            }
+        val partner = userService.getUser(partnerId)
 
         val existing = conversationRepo.findByUsers(user, partner)
         if (existing != null) {
