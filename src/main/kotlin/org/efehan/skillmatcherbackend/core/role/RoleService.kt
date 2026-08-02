@@ -20,30 +20,42 @@ class RoleService(
     private val roleRepo: RoleRepository,
     private val userService: UserService,
 ) {
+    /** Resolves inside the caller's tenant — Hibernate adds the `company_id` restriction. */
     fun findRole(roleName: String): RoleModel? = roleRepo.findByName(roleName.uppercase())
 
-    fun getRole(roleName: String): RoleModel =
-        findRole(roleName)
-            ?: throw EntryNotFoundException(
-                resource = "Role",
-                field = "name",
-                value = roleName,
-                errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
-                status = HttpStatus.NOT_FOUND,
-            )
+    /** For root-context callers, which have no ambient tenant to scope the lookup. */
+    fun findRole(
+        companyId: String,
+        roleName: String,
+    ): RoleModel? = roleRepo.findByCompanyIdAndName(companyId, roleName.uppercase())
+
+    fun getRole(roleName: String): RoleModel = findRole(roleName) ?: throw roleNotFound("name", roleName)
+
+    fun getRole(
+        companyId: String,
+        roleName: String,
+    ): RoleModel = findRole(companyId, roleName) ?: throw roleNotFound("name", roleName)
+
+    /**
+     * Gives a company its own copy of the built-in catalog. Idempotent, so provisioning and the
+     * standalone bootstrap can both call it on every start. SUPERADMIN is left out: it exists
+     * only in the platform company, where the migration seeds it.
+     */
+    fun seedDefaults(companyId: String) {
+        RoleName.entries
+            .filter { it != RoleName.SUPERADMIN }
+            .filter { roleRepo.findByCompanyIdAndName(companyId, it.name) == null }
+            .forEach {
+                roleRepo.save(
+                    RoleModel(name = it.name, description = it.defaultDescription).apply { this.companyId = companyId },
+                )
+            }
+    }
 
     @Transactional(readOnly = true)
     fun listRoles(): List<RoleModel> = roleRepo.findAll(Sort.by("name"))
 
-    fun getRoleById(roleId: String): RoleModel =
-        roleRepo.findByIdOrNull(roleId)
-            ?: throw EntryNotFoundException(
-                resource = "Role",
-                field = "id",
-                value = roleId,
-                errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
-                status = HttpStatus.NOT_FOUND,
-            )
+    fun getRoleById(roleId: String): RoleModel = roleRepo.findByIdOrNull(roleId) ?: throw roleNotFound("id", roleId)
 
     /** Names are stored uppercase because every lookup and the `ROLE_` authority derive from them. */
     fun create(
@@ -83,8 +95,8 @@ class RoleService(
                 message = "Built-in role '${role.name}' cannot be deleted.",
             )
         }
-        // roles are global, so this must see every tenant — it does because the caller is a
-        // SUPERADMIN and their requests run in the root context, where Hibernate skips the filter
+        // holders and roles live in the same tenant, so the ambient filter already covers this;
+        // without the check the delete would fail on the FK as a 500
         if (userService.existsByRole(role)) {
             throw AccessDeniedException(
                 resource = "Role",
@@ -95,4 +107,15 @@ class RoleService(
         }
         roleRepo.delete(role)
     }
+
+    private fun roleNotFound(
+        field: String,
+        value: String,
+    ) = EntryNotFoundException(
+        resource = "Role",
+        field = field,
+        value = value,
+        errorCode = GlobalErrorCode.ROLE_NOT_FOUND,
+        status = HttpStatus.NOT_FOUND,
+    )
 }

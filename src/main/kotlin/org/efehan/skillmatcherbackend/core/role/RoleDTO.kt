@@ -3,8 +3,6 @@ package org.efehan.skillmatcherbackend.core.role
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
-import org.efehan.skillmatcherbackend.persistence.RoleModel
-import org.efehan.skillmatcherbackend.persistence.RoleName
 
 data class CreateRoleRequest(
     @field:NotBlank(message = "name must not be blank")
@@ -30,11 +28,3 @@ data class RoleDto(
     val description: String?,
     val builtIn: Boolean,
 )
-
-fun RoleModel.toDTO() =
-    RoleDto(
-        id = id,
-        name = name,
-        description = description,
-        builtIn = RoleName.isBuiltIn(name),
-    )

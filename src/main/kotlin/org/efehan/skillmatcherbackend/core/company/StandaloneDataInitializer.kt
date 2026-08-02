@@ -36,6 +36,7 @@ class StandaloneDataInitializer(
     override fun run(args: ApplicationArguments) {
         TenantContext.runAsRoot {
             val company = ensureCompany()
+            roleService.seedDefaults(company.id)
             ensureAdmin(company)
         }
     }
@@ -79,7 +80,7 @@ class StandaloneDataInitializer(
         if (userService.existsByEmail(standaloneProperties.adminEmail)) return
 
         val adminRole =
-            roleService.findRole(RoleName.ADMIN.name)
+            roleService.findRole(company.id, RoleName.ADMIN.name)
                 ?: error("Role ${RoleName.ADMIN.name} is missing — cannot bootstrap standalone admin")
 
         logger.info("Creating standalone admin '{}'", standaloneProperties.adminEmail)
