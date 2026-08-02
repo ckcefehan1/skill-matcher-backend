@@ -6,10 +6,8 @@ import org.efehan.skillmatcherbackend.core.tenant.TenantContext
 import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.SkillModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
-import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
 import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
 import org.efehan.skillmatcherbackend.persistence.SkillRelationType
-import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.scheduling.annotation.Scheduled
@@ -25,8 +23,8 @@ data class SkillRelationInfo(
 
 @Service
 class SkillGraphService(
-    private val skillRelationRepo: SkillRelationRepository,
-    private val userSkillRepo: UserSkillRepository,
+    private val skillRelationService: SkillRelationService,
+    private val userSkillService: UserSkillService,
     private val properties: SkillGraphProperties,
 ) {
     private val log = LoggerFactory.getLogger(SkillGraphService::class.java)
@@ -41,7 +39,7 @@ class SkillGraphService(
         if (!properties.enabled) return emptyMap()
         if (skills.isEmpty()) return emptyMap()
         val byId = skills.associateBy { it.id }
-        val relations = skillRelationRepo.findBySkillIn(skills)
+        val relations = skillRelationService.findBySkills(skills)
 
         val result = mutableMapOf<String, MutableList<SkillRelationInfo>>()
         for (relation in relations) {
@@ -87,7 +85,7 @@ class SkillGraphService(
         // deliberately aggregates user_skills across tenants — declared root context
         TenantContext.runAsRoot {
             val coOccurrences =
-                userSkillRepo.findSkillCoOccurrence(properties.minCoOccurrence.toLong())
+                userSkillService.findCoOccurrences(properties.minCoOccurrence.toLong())
             if (coOccurrences.isEmpty()) return@runAsRoot
 
             val maxCount = coOccurrences.maxOf { it.count }.toDouble()
@@ -100,11 +98,10 @@ class SkillGraphService(
                 if (pairKey in curatedPairs) continue
 
                 val transferPenalty = computeLearnedPenalty(co.count, maxCount)
-                val existing =
-                    skillRelationRepo.findByFromSkillAndToSkill(co.fromSkill, co.toSkill)
+                val existing = skillRelationService.findBetween(co.fromSkill, co.toSkill)
 
                 if (existing == null) {
-                    skillRelationRepo.save(
+                    skillRelationService.save(
                         SkillRelationModel(
                             fromSkill = co.fromSkill,
                             toSkill = co.toSkill,
@@ -129,8 +126,8 @@ class SkillGraphService(
             skills.add(co.fromSkill)
             skills.add(co.toSkill)
         }
-        return skillRelationRepo
-            .findBySkillIn(skills)
+        return skillRelationService
+            .findBySkills(skills)
             .asSequence()
             .filter { it.source == SkillRelationSource.CURATED }
             .map { pairKey(it.fromSkill.id, it.toSkill.id) }

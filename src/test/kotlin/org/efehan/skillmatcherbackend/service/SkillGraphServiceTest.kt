@@ -9,14 +9,14 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.config.properties.SkillGraphProperties
 import org.efehan.skillmatcherbackend.core.skill.SkillGraphService
+import org.efehan.skillmatcherbackend.core.skill.SkillRelationService
+import org.efehan.skillmatcherbackend.core.skill.UserSkillService
 import org.efehan.skillmatcherbackend.fixtures.builder.SkillBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.SkillRelationBuilder
 import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
-import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
 import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
 import org.efehan.skillmatcherbackend.persistence.SkillRelationType
-import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -25,10 +25,10 @@ import org.junit.jupiter.api.extension.ExtendWith
 @DisplayName("SkillGraphService Unit Tests")
 class SkillGraphServiceTest {
     @MockK
-    private lateinit var skillRelationRepo: SkillRelationRepository
+    private lateinit var skillRelationService: SkillRelationService
 
     @MockK
-    private lateinit var userSkillRepo: UserSkillRepository
+    private lateinit var userSkillService: UserSkillService
 
     private val properties =
         SkillGraphProperties(
@@ -46,7 +46,7 @@ class SkillGraphServiceTest {
         val result = service.expandSkills(emptyList())
 
         assertThat(result).isEmpty()
-        verify(exactly = 0) { skillRelationRepo.findBySkillIn(any()) }
+        verify(exactly = 0) { skillRelationService.findBySkills(any()) }
     }
 
     @Test
@@ -59,7 +59,7 @@ class SkillGraphServiceTest {
                 toSkill = java,
                 transferPenalty = 0.7,
             )
-        every { skillRelationRepo.findBySkillIn(listOf(kotlin)) } returns listOf(relation)
+        every { skillRelationService.findBySkills(listOf(kotlin)) } returns listOf(relation)
 
         val result = service.expandSkills(listOf(kotlin))
 
@@ -79,7 +79,7 @@ class SkillGraphServiceTest {
                 toSkill = java,
                 transferPenalty = 0.7,
             )
-        every { skillRelationRepo.findBySkillIn(listOf(java)) } returns listOf(relation)
+        every { skillRelationService.findBySkills(listOf(java)) } returns listOf(relation)
 
         val result = service.expandSkills(listOf(java))
 
@@ -105,7 +105,7 @@ class SkillGraphServiceTest {
                 toSkill = python,
                 transferPenalty = 0.3,
             )
-        every { skillRelationRepo.findBySkillIn(listOf(kotlin)) } returns listOf(strongRelation, weakRelation)
+        every { skillRelationService.findBySkills(listOf(kotlin)) } returns listOf(strongRelation, weakRelation)
 
         val result = service.expandSkills(listOf(kotlin))
 
@@ -117,8 +117,8 @@ class SkillGraphServiceTest {
     fun `deriveCoOccurrence does nothing when derivation disabled`() {
         val disabledService =
             SkillGraphService(
-                skillRelationRepo,
-                userSkillRepo,
+                skillRelationService,
+                userSkillService,
                 SkillGraphProperties(
                     enabled = true,
                     minCoOccurrence = 5,
@@ -129,16 +129,16 @@ class SkillGraphServiceTest {
 
         disabledService.deriveCoOccurrence()
 
-        verify(exactly = 0) { userSkillRepo.findSkillCoOccurrence(any()) }
+        verify(exactly = 0) { userSkillService.findCoOccurrences(any()) }
     }
 
     @Test
     fun `deriveCoOccurrence does nothing when no co-occurrences found`() {
-        every { userSkillRepo.findSkillCoOccurrence(5L) } returns emptyList()
+        every { userSkillService.findCoOccurrences(5L) } returns emptyList()
 
         service.deriveCoOccurrence()
 
-        verify(exactly = 0) { skillRelationRepo.save(any()) }
+        verify(exactly = 0) { skillRelationService.save(any()) }
     }
 
     @Test
@@ -146,15 +146,15 @@ class SkillGraphServiceTest {
         val kotlin = SkillBuilder().build(name = "kotlin")
         val java = SkillBuilder().build(name = "java")
         val co = SkillCoOccurrence(fromSkill = kotlin, toSkill = java, count = 10L)
-        every { userSkillRepo.findSkillCoOccurrence(5L) } returns listOf(co)
-        every { skillRelationRepo.findBySkillIn(any()) } returns emptyList()
-        every { skillRelationRepo.findByFromSkillAndToSkill(kotlin, java) } returns null
-        every { skillRelationRepo.save(any()) } returnsArgument 0
+        every { userSkillService.findCoOccurrences(5L) } returns listOf(co)
+        every { skillRelationService.findBySkills(any()) } returns emptyList()
+        every { skillRelationService.findBetween(kotlin, java) } returns null
+        every { skillRelationService.save(any()) } returnsArgument 0
 
         service.deriveCoOccurrence()
 
         val saved = slot<SkillRelationModel>()
-        verify(exactly = 1) { skillRelationRepo.save(capture(saved)) }
+        verify(exactly = 1) { skillRelationService.save(capture(saved)) }
         assertThat(saved.captured.fromSkill.id).isEqualTo(kotlin.id)
         assertThat(saved.captured.toSkill.id).isEqualTo(java.id)
         assertThat(saved.captured.source).isEqualTo(SkillRelationSource.LEARNED)
@@ -175,14 +175,14 @@ class SkillGraphServiceTest {
                 transferPenalty = 0.5,
                 source = SkillRelationSource.LEARNED,
             )
-        every { userSkillRepo.findSkillCoOccurrence(5L) } returns listOf(co)
-        every { skillRelationRepo.findBySkillIn(any()) } returns emptyList()
-        every { skillRelationRepo.findByFromSkillAndToSkill(kotlin, java) } returns existing
-        every { skillRelationRepo.save(any()) } returnsArgument 0
+        every { userSkillService.findCoOccurrences(5L) } returns listOf(co)
+        every { skillRelationService.findBySkills(any()) } returns emptyList()
+        every { skillRelationService.findBetween(kotlin, java) } returns existing
+        every { skillRelationService.save(any()) } returnsArgument 0
 
         service.deriveCoOccurrence()
 
-        verify(exactly = 0) { skillRelationRepo.save(any()) }
+        verify(exactly = 0) { skillRelationService.save(any()) }
         assertThat(existing.transferPenalty).isEqualTo(0.7)
     }
 
@@ -198,13 +198,13 @@ class SkillGraphServiceTest {
                 transferPenalty = 0.9,
                 source = SkillRelationSource.CURATED,
             )
-        every { userSkillRepo.findSkillCoOccurrence(5L) } returns listOf(co)
-        every { skillRelationRepo.findBySkillIn(any()) } returns listOf(curated)
+        every { userSkillService.findCoOccurrences(5L) } returns listOf(co)
+        every { skillRelationService.findBySkills(any()) } returns listOf(curated)
 
         service.deriveCoOccurrence()
 
-        verify(exactly = 0) { skillRelationRepo.findByFromSkillAndToSkill(any(), any()) }
-        verify(exactly = 0) { skillRelationRepo.save(any()) }
+        verify(exactly = 0) { skillRelationService.findBetween(any(), any()) }
+        verify(exactly = 0) { skillRelationService.save(any()) }
     }
 
     @Test
@@ -215,15 +215,15 @@ class SkillGraphServiceTest {
         // Strong pair (count = maxCount = 100) and weak pair (count = 5)
         val strongCo = SkillCoOccurrence(fromSkill = kotlin, toSkill = java, count = 100L)
         val weakCo = SkillCoOccurrence(fromSkill = kotlin, toSkill = python, count = 5L)
-        every { userSkillRepo.findSkillCoOccurrence(5L) } returns listOf(strongCo, weakCo)
-        every { skillRelationRepo.findBySkillIn(any()) } returns emptyList()
-        every { skillRelationRepo.findByFromSkillAndToSkill(any(), any()) } returns null
-        every { skillRelationRepo.save(any()) } returnsArgument 0
+        every { userSkillService.findCoOccurrences(5L) } returns listOf(strongCo, weakCo)
+        every { skillRelationService.findBySkills(any()) } returns emptyList()
+        every { skillRelationService.findBetween(any(), any()) } returns null
+        every { skillRelationService.save(any()) } returnsArgument 0
 
         service.deriveCoOccurrence()
 
         val saved = mutableListOf<SkillRelationModel>()
-        verify(exactly = 2) { skillRelationRepo.save(capture(saved)) }
+        verify(exactly = 2) { skillRelationService.save(capture(saved)) }
         val strong = saved.first { it.toSkill.id == java.id }
         val weak = saved.first { it.toSkill.id == python.id }
         // strong: 0.3 + 0.4 * (100/100) = 0.7

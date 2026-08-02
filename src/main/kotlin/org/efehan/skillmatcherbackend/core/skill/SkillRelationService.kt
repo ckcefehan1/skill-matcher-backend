@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.core.skill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.SkillModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationModel
 import org.efehan.skillmatcherbackend.persistence.SkillRelationRepository
 import org.efehan.skillmatcherbackend.persistence.SkillRelationSource
@@ -57,7 +58,18 @@ class SkillRelationService(
     }
 
     @Transactional(readOnly = true)
-    fun listBySkill(skillId: String): List<SkillRelationModel> = skillRelationRepo.findBySkillIn(listOf(skillService.getSkill(skillId)))
+    fun listBySkill(skillId: String): List<SkillRelationModel> = findBySkills(listOf(skillService.getSkill(skillId)))
+
+    @Transactional(readOnly = true)
+    fun findBySkills(skills: Collection<SkillModel>): List<SkillRelationModel> = skillRelationRepo.findBySkillIn(skills)
+
+    @Transactional(readOnly = true)
+    fun findBetween(
+        fromSkill: SkillModel,
+        toSkill: SkillModel,
+    ): SkillRelationModel? = skillRelationRepo.findByFromSkillAndToSkill(fromSkill, toSkill)
+
+    fun save(relation: SkillRelationModel): SkillRelationModel = skillRelationRepo.save(relation)
 
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],

@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.core.skill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
+import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
@@ -47,6 +48,9 @@ class UserSkillService(
     }
 
     fun getUserSkills(user: UserModel): List<UserSkillModel> = userSkillRepo.findByUser(user)
+
+    @Transactional(readOnly = true)
+    fun findCoOccurrences(minCount: Long): List<SkillCoOccurrence> = userSkillRepo.findSkillCoOccurrence(minCount)
 
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
