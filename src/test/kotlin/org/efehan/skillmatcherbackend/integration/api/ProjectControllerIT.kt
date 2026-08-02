@@ -2,7 +2,10 @@ package org.efehan.skillmatcherbackend.integration.api
 
 import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.auth.JwtService
+import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
+import org.efehan.skillmatcherbackend.fixtures.builder.ProjectSkillBuilder
+import org.efehan.skillmatcherbackend.fixtures.builder.SkillBuilder
 import org.efehan.skillmatcherbackend.fixtures.requests.ProjectFixtures
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberModel
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
@@ -378,6 +381,30 @@ class ProjectControllerIT : AbstractIntegrationTest() {
 
         assertThat(projectRepository.findById(project.id)).isEmpty
         assertThat(projectMemberRepository.findAll()).isEmpty()
+    }
+
+    @Test
+    fun `should delete project with skills and applications and return 204`() {
+        // given
+        val (owner, token) = createProjectManagerAndGetToken()
+        val project = createProject(owner)
+        val (applicant, _) = createEmployerAndGetToken()
+        applicationRepository.save(ProjectApplicationBuilder().build(project = project, user = applicant))
+        val skill = skillRepository.save(SkillBuilder().build(name = "kotlin"))
+        projectSkillRepository.save(ProjectSkillBuilder().build(project = project, skill = skill))
+
+        // when & then
+        mockMvc
+            .delete("/api/projects/${project.id}") {
+                withAuth(token)
+            }.andExpect {
+                status { isNoContent() }
+            }
+
+        assertThat(projectRepository.findById(project.id)).isEmpty
+        assertThat(applicationRepository.findAll()).isEmpty()
+        assertThat(projectSkillRepository.findAll()).isEmpty()
+        assertThat(skillRepository.findById(skill.id)).isPresent
     }
 
     @Test

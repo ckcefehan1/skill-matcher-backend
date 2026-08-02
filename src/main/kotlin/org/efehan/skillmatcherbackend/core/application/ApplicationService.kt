@@ -2,6 +2,7 @@ package org.efehan.skillmatcherbackend.core.application
 
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
@@ -10,7 +11,6 @@ import org.efehan.skillmatcherbackend.persistence.ProjectApplicationModel
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
-import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
@@ -28,7 +28,7 @@ import java.time.Instant
 @Transactional
 class ApplicationService(
     private val applicationRepo: ProjectApplicationRepository,
-    private val projectRepo: ProjectRepository,
+    private val projectService: ProjectService,
     private val memberRepo: ProjectMemberRepository,
     private val userRepo: UserRepository,
     private val memberService: ProjectMemberService,
@@ -40,7 +40,7 @@ class ApplicationService(
         projectId: String,
         message: String?,
     ): ProjectApplicationModel {
-        val project = findProjectOrThrow(projectId)
+        val project = projectService.getProject(projectId)
 
         val existingMember = memberRepo.findByProjectAndUser(project, user)
         if (existingMember != null && existingMember.status == ProjectMemberStatus.ACTIVE) {
@@ -145,7 +145,7 @@ class ApplicationService(
         userId: String,
         message: String?,
     ): ProjectApplicationModel {
-        val project = findProjectOrThrow(projectId)
+        val project = projectService.getProject(projectId)
         if (project.owner.id != pm.id) {
             throw AccessDeniedException(
                 resource = "ProjectApplication",
@@ -263,7 +263,7 @@ class ApplicationService(
         projectId: String,
         pageable: Pageable,
     ): Page<ProjectApplicationModel> {
-        val project = findProjectOrThrow(projectId)
+        val project = projectService.getProject(projectId)
         if (project.owner.id != pm.id) {
             throw AccessDeniedException(
                 resource = "ProjectApplication",
@@ -283,16 +283,6 @@ class ApplicationService(
         user: UserModel,
         pageable: Pageable,
     ): Page<ProjectApplicationModel> = applicationRepo.findByUser(user, pageable)
-
-    private fun findProjectOrThrow(projectId: String) =
-        projectRepo.findByIdOrNull(projectId)
-            ?: throw EntryNotFoundException(
-                resource = "Project",
-                field = "id",
-                value = projectId,
-                errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                status = HttpStatus.NOT_FOUND,
-            )
 
     private fun findApplicationOrThrow(applicationId: String) =
         applicationRepo.findByIdOrNull(applicationId)

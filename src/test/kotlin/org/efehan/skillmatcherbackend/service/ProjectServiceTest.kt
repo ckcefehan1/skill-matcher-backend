@@ -10,14 +10,9 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
-import org.efehan.skillmatcherbackend.fixtures.builder.ProjectMemberBuilder
-import org.efehan.skillmatcherbackend.fixtures.builder.SkillBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectSkillModel
-import org.efehan.skillmatcherbackend.persistence.ProjectSkillRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectStatus
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -34,12 +29,6 @@ import java.util.Optional
 class ProjectServiceTest {
     @MockK
     private lateinit var projectRepo: ProjectRepository
-
-    @MockK
-    private lateinit var projectSkillRepo: ProjectSkillRepository
-
-    @MockK
-    private lateinit var projectMemberRepo: ProjectMemberRepository
 
     @InjectMockKs
     private lateinit var projectService: ProjectService
@@ -231,47 +220,17 @@ class ProjectServiceTest {
     }
 
     @Test
-    fun `deleteProject deletes project and its skills when owner`() {
+    fun `deleteProject deletes project when owner`() {
         // given
         val owner = UserBuilder().build()
         val project = ProjectBuilder().build(owner = owner)
-        val projectMember = ProjectMemberBuilder().build(project = project, user = owner)
-        val skill = SkillBuilder().build()
-        val projectSkill = ProjectSkillModel(project = project, skill = skill, level = 3)
         every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { projectMemberRepo.findByProject(project) } returns listOf(projectMember)
-        every { projectMemberRepo.deleteAll(listOf(projectMember)) } returns Unit
-        every { projectSkillRepo.findByProject(project) } returns listOf(projectSkill)
-        every { projectSkillRepo.deleteAll(listOf(projectSkill)) } returns Unit
         every { projectRepo.delete(project) } returns Unit
 
         // when
         projectService.deleteProject(owner, project.id)
 
         // then
-        verify(exactly = 1) { projectMemberRepo.deleteAll(listOf(projectMember)) }
-        verify(exactly = 1) { projectSkillRepo.deleteAll(listOf(projectSkill)) }
-        verify(exactly = 1) { projectRepo.delete(project) }
-    }
-
-    @Test
-    fun `deleteProject works when project has no skills`() {
-        // given
-        val owner = UserBuilder().build()
-        val project = ProjectBuilder().build(owner = owner)
-        every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { projectMemberRepo.findByProject(project) } returns emptyList()
-        every { projectMemberRepo.deleteAll(emptyList()) } returns Unit
-        every { projectSkillRepo.findByProject(project) } returns emptyList()
-        every { projectSkillRepo.deleteAll(emptyList()) } returns Unit
-        every { projectRepo.delete(project) } returns Unit
-
-        // when
-        projectService.deleteProject(owner, project.id)
-
-        // then
-        verify(exactly = 1) { projectMemberRepo.deleteAll(emptyList()) }
-        verify(exactly = 1) { projectSkillRepo.deleteAll(emptyList()) }
         verify(exactly = 1) { projectRepo.delete(project) }
     }
 

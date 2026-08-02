@@ -1,13 +1,13 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
@@ -25,6 +25,7 @@ import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -45,8 +46,12 @@ class ProjectMemberServiceTest {
     @MockK
     private lateinit var applicationRepo: ProjectApplicationRepository
 
-    @InjectMockKs
     private lateinit var service: ProjectMemberService
+
+    @BeforeEach
+    fun setUp() {
+        service = ProjectMemberService(ProjectService(projectRepo), userRepo, memberRepo, applicationRepo)
+    }
 
     @Test
     fun `addMember saves and returns new member`() {

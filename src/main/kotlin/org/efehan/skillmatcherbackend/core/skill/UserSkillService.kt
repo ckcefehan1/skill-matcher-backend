@@ -35,10 +35,7 @@ class UserSkillService(
     ): Pair<UserSkillModel, Boolean> {
         require(level in 1..5) { "Level must be between 1 and 5" }
 
-        val normalized = name.trim().lowercase()
-        val skill =
-            skillRepo.findByNameIgnoreCase(normalized)
-                ?: skillRepo.save(SkillModel(name = normalized))
+        val skill = skillRepo.findOrCreate(name)
 
         val existing = userSkillRepo.findByUserAndSkillId(user, skill.id)
         val created = existing == null

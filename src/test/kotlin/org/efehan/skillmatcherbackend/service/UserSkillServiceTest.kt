@@ -41,8 +41,7 @@ class UserSkillServiceTest {
         // given
         val user = UserBuilder().build()
         val skill = SkillBuilder().build(name = "kotlin")
-        every { skillRepo.findByNameIgnoreCase("kotlin") } returns null
-        every { skillRepo.save(any()) } returns skill
+        every { skillRepo.findOrCreate("Kotlin") } returns skill
         every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns null
         every { userSkillRepo.save(any()) } returnsArgument 0
 
@@ -53,27 +52,7 @@ class UserSkillServiceTest {
         assertThat(created).isTrue()
         assertThat(result.skill.name).isEqualTo("kotlin")
         assertThat(result.level).isEqualTo(3)
-        verify(exactly = 1) { skillRepo.save(any()) }
         verify(exactly = 1) { userSkillRepo.save(any()) }
-    }
-
-    @Test
-    fun `addOrUpdateSkill reuses existing skill`() {
-        // given
-        val user = UserBuilder().build()
-        val skill = SkillBuilder().build(name = "java")
-        every { skillRepo.findByNameIgnoreCase("java") } returns skill
-        every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns null
-        every { userSkillRepo.save(any()) } returnsArgument 0
-
-        // when
-        val (result, created) = userSkillService.addOrUpdateSkill(user, "Java", 4)
-
-        // then
-        assertThat(created).isTrue()
-        assertThat(result.skill.name).isEqualTo("java")
-        assertThat(result.level).isEqualTo(4)
-        verify(exactly = 0) { skillRepo.save(any()) }
     }
 
     @Test
@@ -82,7 +61,7 @@ class UserSkillServiceTest {
         val user = UserBuilder().build()
         val skill = SkillBuilder().build(name = "kotlin")
         val existingUserSkill = UserSkillBuilder().build(user = user, skill = skill, level = 2)
-        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
+        every { skillRepo.findOrCreate("Kotlin") } returns skill
         every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns existingUserSkill
         every { userSkillRepo.save(any()) } returnsArgument 0
 
@@ -92,24 +71,6 @@ class UserSkillServiceTest {
         // then
         assertThat(created).isFalse()
         assertThat(result.level).isEqualTo(5)
-        verify(exactly = 0) { skillRepo.save(any()) }
-    }
-
-    @Test
-    fun `addOrUpdateSkill trims and lowercases skill name`() {
-        // given
-        val user = UserBuilder().build()
-        val skill = SkillBuilder().build(name = "spring boot")
-        every { skillRepo.findByNameIgnoreCase("spring boot") } returns skill
-        every { userSkillRepo.findByUserAndSkillId(user, skill.id) } returns null
-        every { userSkillRepo.save(any()) } returnsArgument 0
-
-        // when
-        val (result, _) = userSkillService.addOrUpdateSkill(user, "  Spring Boot  ", 3)
-
-        // then
-        assertThat(result.skill.name).isEqualTo("spring boot")
-        verify { skillRepo.findByNameIgnoreCase("spring boot") }
     }
 
     @Test

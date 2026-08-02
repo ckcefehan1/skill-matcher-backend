@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <!--
+      Deleting a project used to mean deleting its children by hand in
+      ProjectService. Applications were missed, so any project with an
+      application failed on the foreign key. The database owns the cascade now.
+    -->
+    <changeSet id="1782600000000-1" author="efehan">
+        <dropForeignKeyConstraint baseTableName="project_skills" constraintName="FK_PROJECT_SKILLS_ON_PROJECT"/>
+        <addForeignKeyConstraint baseColumnNames="project_id" baseTableName="project_skills"
+                                 constraintName="FK_PROJECT_SKILLS_ON_PROJECT" referencedColumnNames="id"
+                                 referencedTableName="projects" onDelete="CASCADE"/>
+    </changeSet>
+    <changeSet id="1782600000000-2" author="efehan">
+        <dropForeignKeyConstraint baseTableName="project_members" constraintName="FK_PROJECT_MEMBERS_ON_PROJECT"/>
+        <addForeignKeyConstraint baseColumnNames="project_id" baseTableName="project_members"
+                                 constraintName="FK_PROJECT_MEMBERS_ON_PROJECT" referencedColumnNames="id"
+                                 referencedTableName="projects" onDelete="CASCADE"/>
+    </changeSet>
+    <changeSet id="1782600000000-3" author="efehan">
+        <dropForeignKeyConstraint baseTableName="project_applications"
+                                  constraintName="FK_PROJECT_APPLICATIONS_ON_PROJECT"/>
+        <addForeignKeyConstraint baseColumnNames="project_id" baseTableName="project_applications"
+                                 constraintName="FK_PROJECT_APPLICATIONS_ON_PROJECT" referencedColumnNames="id"
+                                 referencedTableName="projects" onDelete="CASCADE"/>
+    </changeSet>
+</databaseChangeLog>

@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.application.ApplicationService
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
@@ -70,7 +71,7 @@ class ApplicationServiceTest {
         service =
             ApplicationService(
                 applicationRepo = applicationRepo,
-                projectRepo = projectRepo,
+                projectService = ProjectService(projectRepo),
                 memberRepo = memberRepo,
                 userRepo = userRepo,
                 memberService = memberService,
