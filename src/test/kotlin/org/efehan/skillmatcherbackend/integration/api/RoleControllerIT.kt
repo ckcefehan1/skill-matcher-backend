@@ -84,6 +84,22 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
+    fun `rejects a reserved role name`() {
+        // SUPERADMIN is never seeded into a company tenant, so only the reserved-name
+        // guard stops an admin from minting a name-derived ROLE_SUPERADMIN authority
+        val token = adminToken()
+
+        mockMvc
+            .post("/api/admin/roles") {
+                withBodyRequest(CreateRoleRequest(name = "SUPERADMIN", description = null))
+                withAuth(token)
+            }.andExpect {
+                status { isConflict() }
+                jsonPath("$.errorCode") { value("ROLE_IMMUTABLE") }
+            }
+    }
+
+    @Test
     fun `rejects a name that would not survive as an authority`() {
         val token = adminToken()
 
@@ -129,6 +145,21 @@ class RoleControllerIT : AbstractIntegrationTest() {
                 status { isOk() }
                 jsonPath("$.name") { value("AUDITOR") }
                 jsonPath("$.description") { value("Reads audit logs only") }
+            }
+    }
+
+    @Test
+    fun `returns 404 when updating a role of another company`() {
+        val token = adminToken()
+        val foreign = TenantContext.withTenant(companyB.id) { roleRepository.save(RoleModel("FOREIGN", null)) }
+
+        mockMvc
+            .patch("/api/admin/roles/${foreign.id}") {
+                withBodyRequest(UpdateRoleRequest(description = "takeover"))
+                withAuth(token)
+            }.andExpect {
+                status { isNotFound() }
+                jsonPath("$.errorCode") { value("ROLE_NOT_FOUND") }
             }
     }
 

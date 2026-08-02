@@ -5,9 +5,10 @@ import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.RoleRepository
-import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
+import org.efehan.skillmatcherbackend.shared.exceptions.ConflictException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Sort
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
@@ -63,6 +64,16 @@ class RoleService(
         description: String?,
     ): RoleModel {
         val normalized = name.trim().uppercase()
+        // reserved names would pass the duplicate check whenever the tenant has no seeded copy
+        // (SUPERADMIN never gets one), and isBuiltIn plus the ROLE_ authority are name-derived
+        if (RoleName.isBuiltIn(normalized)) {
+            throw ConflictException(
+                resource = "Role",
+                errorCode = GlobalErrorCode.ROLE_IMMUTABLE,
+                status = HttpStatus.CONFLICT,
+                message = "Role name '$normalized' is reserved.",
+            )
+        }
         if (roleRepo.findByName(normalized) != null) {
             throw DuplicateEntryException(
                 resource = "Role",
@@ -72,7 +83,18 @@ class RoleService(
                 status = HttpStatus.CONFLICT,
             )
         }
-        return roleRepo.save(RoleModel(name = normalized, description = description?.trim()))
+        // saveAndFlush so a concurrent insert loses on uc_roles_company_name here, not at commit as a 500
+        return try {
+            roleRepo.saveAndFlush(RoleModel(name = normalized, description = description?.trim()))
+        } catch (e: DataIntegrityViolationException) {
+            throw DuplicateEntryException(
+                resource = "Role",
+                field = "name",
+                value = normalized,
+                errorCode = GlobalErrorCode.ROLE_ALREADY_EXISTS,
+                status = HttpStatus.CONFLICT,
+            )
+        }
     }
 
     /** Only the description is editable: a rename would silently invalidate every issued token's authority. */
@@ -88,7 +110,7 @@ class RoleService(
     fun delete(roleId: String) {
         val role = getRoleById(roleId)
         if (RoleName.isBuiltIn(role.name)) {
-            throw AccessDeniedException(
+            throw ConflictException(
                 resource = "Role",
                 errorCode = GlobalErrorCode.ROLE_IMMUTABLE,
                 status = HttpStatus.CONFLICT,
@@ -98,14 +120,26 @@ class RoleService(
         // holders and roles live in the same tenant, so the ambient filter already covers this;
         // without the check the delete would fail on the FK as a 500
         if (userService.existsByRole(role)) {
-            throw AccessDeniedException(
+            throw ConflictException(
                 resource = "Role",
                 errorCode = GlobalErrorCode.ROLE_IN_USE,
                 status = HttpStatus.CONFLICT,
                 message = "Role '${role.name}' is still assigned to users.",
             )
         }
-        roleRepo.delete(role)
+        // a user assigned concurrently slips past existsByRole; flush here so the FK violation
+        // surfaces as the same 409 instead of a 500 at commit
+        try {
+            roleRepo.delete(role)
+            roleRepo.flush()
+        } catch (e: DataIntegrityViolationException) {
+            throw ConflictException(
+                resource = "Role",
+                errorCode = GlobalErrorCode.ROLE_IN_USE,
+                status = HttpStatus.CONFLICT,
+                message = "Role '${role.name}' is still assigned to users.",
+            )
+        }
     }
 
     private fun roleNotFound(
