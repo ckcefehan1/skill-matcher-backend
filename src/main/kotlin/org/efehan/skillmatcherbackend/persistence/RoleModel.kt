@@ -25,4 +25,9 @@ enum class RoleName {
     ADMIN,
     EMPLOYER,
     SUPERADMIN,
+    ;
+
+    companion object {
+        fun isBuiltIn(name: String): Boolean = entries.any { it.name == name }
+    }
 }
