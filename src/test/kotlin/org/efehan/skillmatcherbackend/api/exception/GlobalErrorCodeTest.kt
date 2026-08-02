@@ -24,6 +24,11 @@ class GlobalErrorCodeTest {
     // Duplicate entries
     val expectedDuplicateEntryErrorCode = "DUPLICATE_ENTRY"
     val expectedUserAlreadyExistsErrorCode = "USER_ALREADY_EXISTS"
+    val expectedRoleAlreadyExistsErrorCode = "ROLE_ALREADY_EXISTS"
+
+    // Roles
+    val expectedRoleInUseErrorCode = "ROLE_IN_USE"
+    val expectedRoleImmutableErrorCode = "ROLE_IMMUTABLE"
 
     // Not Found
     val expectedNotFoundErrorCode = "NOT_FOUND"
@@ -110,6 +115,9 @@ class GlobalErrorCodeTest {
         // Not Found
         assertThat(expectedNotFoundErrorCode).isEqualTo(GlobalErrorCode.NOT_FOUND.name)
         assertThat(expectedRoleNotFoundErrorCode).isEqualTo(GlobalErrorCode.ROLE_NOT_FOUND.name)
+        assertThat(expectedRoleAlreadyExistsErrorCode).isEqualTo(GlobalErrorCode.ROLE_ALREADY_EXISTS.name)
+        assertThat(expectedRoleInUseErrorCode).isEqualTo(GlobalErrorCode.ROLE_IN_USE.name)
+        assertThat(expectedRoleImmutableErrorCode).isEqualTo(GlobalErrorCode.ROLE_IMMUTABLE.name)
         assertThat(expectedUserNotFoundErrorCode).isEqualTo(GlobalErrorCode.USER_NOT_FOUND.name)
         assertThat(expectedRefreshTokenNotFoundErrorCode).isEqualTo(GlobalErrorCode.REFRESH_TOKEN_NOT_FOUND.name)
         assertThat(expectedProjectNotFoundErrorCode).isEqualTo(GlobalErrorCode.PROJECT_NOT_FOUND.name)
@@ -169,7 +177,7 @@ class GlobalErrorCodeTest {
         assertThat(expectedRateLimitExceededErrorCode).isEqualTo(GlobalErrorCode.RATE_LIMIT_EXCEEDED.name)
         assertThat(expectedInternalServerErrorCode).isEqualTo(GlobalErrorCode.INTERNAL_SERVER_ERROR.name)
 
-        assertThat(GlobalErrorCode.entries.size).isEqualTo(52)
+        assertThat(GlobalErrorCode.entries.size).isEqualTo(55)
     }
 
     @Test

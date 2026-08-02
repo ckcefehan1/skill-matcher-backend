@@ -21,15 +21,15 @@ class RoleControllerIT : AbstractIntegrationTest() {
     @Autowired
     private lateinit var jwtService: JwtService
 
-    private fun superadminToken(): String {
-        val role = roleRepository.save(RoleModel("SUPERADMIN", null))
-        val user = userRepository.save(UserBuilder().build(email = "root@platform.io", role = role))
-        return jwtService.generateAccessToken(user)
-    }
-
     private fun adminToken(): String {
         val role = roleRepository.save(RoleModel("ADMIN", null))
         val user = userRepository.save(UserBuilder().build(email = "admin@firma-a.de", role = role))
+        return jwtService.generateAccessToken(user)
+    }
+
+    private fun employerToken(): String {
+        val role = roleRepository.save(RoleModel("EMPLOYER", null))
+        val user = userRepository.save(UserBuilder().build(email = "max@firma-a.de", role = role))
         return jwtService.generateAccessToken(user)
     }
 
@@ -37,10 +37,10 @@ class RoleControllerIT : AbstractIntegrationTest() {
 
     @Test
     fun `creates a role with an uppercased name`() {
-        val token = superadminToken()
+        val token = adminToken()
 
         mockMvc
-            .post("/api/superadmin/roles") {
+            .post("/api/admin/roles") {
                 withBodyRequest(CreateRoleRequest(name = "auditor", description = " Reads audit logs "))
                 withAuth(token)
             }.andExpect {
@@ -50,18 +50,16 @@ class RoleControllerIT : AbstractIntegrationTest() {
                 jsonPath("$.builtIn") { value(false) }
             }
 
-        TenantContext.runAsRoot {
-            assertThat(roleRepository.findByName("AUDITOR")).isNotNull()
-        }
+        assertThat(roleRepository.findByCompanyIdAndName(companyA.id, "AUDITOR")).isNotNull()
     }
 
     @Test
     fun `rejects a duplicate role name`() {
-        val token = superadminToken()
+        val token = adminToken()
         customRole()
 
         mockMvc
-            .post("/api/superadmin/roles") {
+            .post("/api/admin/roles") {
                 withBodyRequest(CreateRoleRequest(name = "AUDITOR", description = null))
                 withAuth(token)
             }.andExpect {
@@ -71,11 +69,26 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `rejects a name that would not survive as an authority`() {
-        val token = superadminToken()
+    fun `allows the same role name in another company`() {
+        // the catalog is per tenant, so company B's AUDITOR must not block company A's
+        val token = adminToken()
+        TenantContext.withTenant(companyB.id) { roleRepository.save(RoleModel("AUDITOR", null)) }
 
         mockMvc
-            .post("/api/superadmin/roles") {
+            .post("/api/admin/roles") {
+                withBodyRequest(CreateRoleRequest(name = "AUDITOR", description = null))
+                withAuth(token)
+            }.andExpect {
+                status { isCreated() }
+            }
+    }
+
+    @Test
+    fun `rejects a name that would not survive as an authority`() {
+        val token = adminToken()
+
+        mockMvc
+            .post("/api/admin/roles") {
                 withBodyRequest(CreateRoleRequest(name = "AUDITOR,ADMIN", description = null))
                 withAuth(token)
             }.andExpect {
@@ -85,30 +98,31 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `lists built-in and custom roles`() {
-        val token = superadminToken()
+    fun `lists only the own company's roles`() {
+        val token = adminToken()
         customRole()
+        TenantContext.withTenant(companyB.id) { roleRepository.save(RoleModel("FOREIGN", null)) }
 
         mockMvc
-            .get("/api/superadmin/roles") {
+            .get("/api/admin/roles") {
                 withAuth(token)
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.length()") { value(2) }
-                jsonPath("$[0].name") { value("AUDITOR") }
-                jsonPath("$[0].builtIn") { value(false) }
-                jsonPath("$[1].name") { value("SUPERADMIN") }
-                jsonPath("$[1].builtIn") { value(true) }
+                jsonPath("$[0].name") { value("ADMIN") }
+                jsonPath("$[0].builtIn") { value(true) }
+                jsonPath("$[1].name") { value("AUDITOR") }
+                jsonPath("$[1].builtIn") { value(false) }
             }
     }
 
     @Test
     fun `updates the description`() {
-        val token = superadminToken()
+        val token = adminToken()
         val role = customRole()
 
         mockMvc
-            .patch("/api/superadmin/roles/${role.id}") {
+            .patch("/api/admin/roles/${role.id}") {
                 withBodyRequest(UpdateRoleRequest(description = "Reads audit logs only"))
                 withAuth(token)
             }.andExpect {
@@ -120,28 +134,26 @@ class RoleControllerIT : AbstractIntegrationTest() {
 
     @Test
     fun `deletes an unassigned custom role`() {
-        val token = superadminToken()
+        val token = adminToken()
         val role = customRole()
 
         mockMvc
-            .delete("/api/superadmin/roles/${role.id}") {
+            .delete("/api/admin/roles/${role.id}") {
                 withAuth(token)
             }.andExpect {
                 status { isNoContent() }
             }
 
-        TenantContext.runAsRoot {
-            assertThat(roleRepository.findByName("AUDITOR")).isNull()
-        }
+        assertThat(roleRepository.findByCompanyIdAndName(companyA.id, "AUDITOR")).isNull()
     }
 
     @Test
     fun `refuses to delete a built-in role`() {
-        val token = superadminToken()
+        val token = adminToken()
         val builtIn = roleRepository.save(RoleModel("EMPLOYER", null))
 
         mockMvc
-            .delete("/api/superadmin/roles/${builtIn.id}") {
+            .delete("/api/admin/roles/${builtIn.id}") {
                 withAuth(token)
             }.andExpect {
                 status { isConflict() }
@@ -150,15 +162,13 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `refuses to delete a role a tenant still assigns`() {
-        // the holder sits in company A while the request runs as root — the check has to
-        // see across tenants, otherwise the delete would strand that user's foreign key
-        val token = superadminToken()
+    fun `refuses to delete a role that is still assigned`() {
+        val token = adminToken()
         val role = customRole()
         userRepository.save(UserBuilder().build(email = "auditor@firma-a.de", role = role))
 
         mockMvc
-            .delete("/api/superadmin/roles/${role.id}") {
+            .delete("/api/admin/roles/${role.id}") {
                 withAuth(token)
             }.andExpect {
                 status { isConflict() }
@@ -167,11 +177,12 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `returns 404 for an unknown role`() {
-        val token = superadminToken()
+    fun `returns 404 for a role of another company`() {
+        val token = adminToken()
+        val foreign = TenantContext.withTenant(companyB.id) { roleRepository.save(RoleModel("FOREIGN", null)) }
 
         mockMvc
-            .delete("/api/superadmin/roles/does-not-exist") {
+            .delete("/api/admin/roles/${foreign.id}") {
                 withAuth(token)
             }.andExpect {
                 status { isNotFound() }
@@ -180,11 +191,24 @@ class RoleControllerIT : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `admin role cannot manage the global catalog`() {
+    fun `returns 404 for an unknown role`() {
         val token = adminToken()
 
         mockMvc
-            .post("/api/superadmin/roles") {
+            .delete("/api/admin/roles/does-not-exist") {
+                withAuth(token)
+            }.andExpect {
+                status { isNotFound() }
+                jsonPath("$.errorCode") { value("ROLE_NOT_FOUND") }
+            }
+    }
+
+    @Test
+    fun `non-admin roles cannot manage the catalog`() {
+        val token = employerToken()
+
+        mockMvc
+            .post("/api/admin/roles") {
                 withBodyRequest(CreateRoleRequest(name = "AUDITOR", description = null))
                 withAuth(token)
             }.andExpect {
