@@ -7,6 +7,7 @@ import org.efehan.skillmatcherbackend.core.invitation.InvitationAcceptedEvent
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
 import org.efehan.skillmatcherbackend.core.role.RoleService
 import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
@@ -14,7 +15,6 @@ import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.slf4j.LoggerFactory
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class CompanyService(
     private val companyRepository: CompanyRepository,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val roleService: RoleService,
     private val invitationService: InvitationService,
     private val refreshTokenRepository: RefreshTokenRepository,
@@ -75,7 +75,7 @@ class CompanyService(
                 status = HttpStatus.CONFLICT,
             )
         }
-        if (userRepository.existsByEmail(command.adminEmail)) {
+        if (userService.existsByEmail(command.adminEmail)) {
             if (command.selfRegistered) {
                 logger.info("Registration with already-known email suppressed")
                 return null
@@ -115,7 +115,7 @@ class CompanyService(
                 lastName = null,
                 role = adminRole,
             ).apply { companyId = company.id }
-        userRepository.save(admin)
+        userService.save(admin)
 
         if (command.selfRegistered) {
             // self-registration proves email ownership via one-time code typed into
@@ -155,7 +155,7 @@ class CompanyService(
 
         if (!enabled) {
             // same semantics as disabling a single user: kill tokens and live sessions
-            userRepository.findAllByCompanyId(companyId).forEach { user ->
+            userService.listByCompany(companyId).forEach { user ->
                 refreshTokenRepository.revokeAllUserTokens(user.id)
                 sessionRegistry.disconnect(user.id)
             }

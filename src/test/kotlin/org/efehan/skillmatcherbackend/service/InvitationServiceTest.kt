@@ -86,7 +86,6 @@ class InvitationServiceTest {
         invitationService =
             InvitationService(
                 invitationTokenRepository,
-                userRepository,
                 UserService(userRepository),
                 refreshTokenRepository,
                 jwtService,

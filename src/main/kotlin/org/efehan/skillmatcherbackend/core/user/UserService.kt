@@ -4,6 +4,8 @@ import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -23,4 +25,21 @@ class UserService(
                 errorCode = GlobalErrorCode.USER_NOT_FOUND,
                 status = HttpStatus.NOT_FOUND,
             )
+
+    /** Null instead of a throw: the callers answer unknown emails like known ones to avoid an address oracle. */
+    fun findByEmail(email: String): UserModel? = userRepo.findByEmail(email)
+
+    fun existsByEmail(email: String): Boolean = userRepo.existsByEmail(email)
+
+    fun listUsers(pageable: Pageable): Page<UserModel> = userRepo.findAll(pageable)
+
+    fun listByCompany(companyId: String): List<UserModel> = userRepo.findAllByCompanyId(companyId)
+
+    fun searchChatPartners(
+        q: String,
+        excludedId: String,
+        pageable: Pageable,
+    ): List<UserModel> = userRepo.searchChatPartners(q, excludedId, pageable)
+
+    fun save(user: UserModel): UserModel = userRepo.save(user)
 }

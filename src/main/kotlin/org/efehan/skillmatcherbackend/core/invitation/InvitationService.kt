@@ -14,7 +14,6 @@ import org.efehan.skillmatcherbackend.persistence.InvitationTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenModel
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.InvalidTokenException
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -33,7 +32,6 @@ import java.util.UUID
 @Transactional
 class InvitationService(
     private val invitationTokenRepository: InvitationTokenRepository,
-    private val userRepository: UserRepository,
     private val userService: UserService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtService: JwtService,
@@ -164,7 +162,7 @@ class InvitationService(
     }
 
     private fun findCodeInvitation(email: String): InvitationTokenModel? =
-        userRepository
+        userService
             .findByEmail(email)
             ?.let { invitationTokenRepository.findFirstByUserAndCodeHashNotNullOrderByCreatedDateDesc(it) }
 
@@ -241,7 +239,7 @@ class InvitationService(
         user.firstName = firstName
         user.lastName = lastName
         user.isEnabled = true
-        userRepository.save(user)
+        userService.save(user)
         // listeners (e.g. self-registered company activation) join this transaction
         eventPublisher.publishEvent(InvitationAcceptedEvent(user))
 

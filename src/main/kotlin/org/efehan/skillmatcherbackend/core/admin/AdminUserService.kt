@@ -10,7 +10,6 @@ import org.efehan.skillmatcherbackend.persistence.AuditAction
 import org.efehan.skillmatcherbackend.persistence.RefreshTokenRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.DuplicateEntryException
 import org.springframework.data.domain.Page
@@ -22,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional
 class AdminUserService(
-    private val userRepository: UserRepository,
     private val userService: UserService,
     private val roleService: RoleService,
     private val invitationService: InvitationService,
@@ -35,7 +33,7 @@ class AdminUserService(
         roleName: String,
     ): UserModel {
         requireAssignableRole(roleName)
-        if (userRepository.existsByEmail(email)) {
+        if (userService.existsByEmail(email)) {
             throw DuplicateEntryException(
                 resource = "User",
                 field = "email",
@@ -57,7 +55,7 @@ class AdminUserService(
             )
         user.isEnabled = false
 
-        val savedUser = userRepository.save(user)
+        val savedUser = userService.save(user)
 
         invitationService.createAndSendInvitation(savedUser)
 
@@ -72,7 +70,7 @@ class AdminUserService(
     ) {
         val user = userService.getUser(userId)
         user.isEnabled = enabled
-        userRepository.save(user)
+        userService.save(user)
 
         if (!enabled) {
             refreshTokenRepository.revokeAllUserTokens(userId)
@@ -86,7 +84,7 @@ class AdminUserService(
         )
     }
 
-    fun listUsers(pageable: Pageable): Page<UserModel> = userRepository.findAll(pageable)
+    fun listUsers(pageable: Pageable): Page<UserModel> = userService.listUsers(pageable)
 
     fun updateUserRole(
         userId: String,
@@ -98,7 +96,7 @@ class AdminUserService(
 
         val previousRole = user.role.name
         user.role = role
-        userRepository.save(user)
+        userService.save(user)
         refreshTokenRepository.revokeAllUserTokens(user.id)
 
         auditService.record(

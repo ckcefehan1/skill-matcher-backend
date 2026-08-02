@@ -54,7 +54,7 @@ class ChatServiceTest {
     @BeforeEach
     fun setUp() {
         chatService =
-            ChatService(conversationRepo, messageRepo, userRepo, UserService(userRepo), messagingTemplate, chatEventPublisher)
+            ChatService(conversationRepo, messageRepo, UserService(userRepo), messagingTemplate, chatEventPublisher)
     }
 
     @Test

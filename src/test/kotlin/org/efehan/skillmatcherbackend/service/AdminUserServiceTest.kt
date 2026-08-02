@@ -62,7 +62,6 @@ class AdminUserServiceTest {
     fun setUp() {
         adminUserService =
             AdminUserService(
-                userRepository,
                 UserService(userRepository),
                 RoleService(roleRepository),
                 invitationService,
