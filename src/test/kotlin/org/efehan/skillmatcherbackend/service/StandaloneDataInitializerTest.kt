@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.config.properties.StandaloneProperties
 import org.efehan.skillmatcherbackend.core.company.StandaloneDataInitializer
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.role.RoleService
 import org.efehan.skillmatcherbackend.core.superadmin.SuperadminBootstrapInitializer.Companion.PLATFORM_COMPANY_ID
 import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.CompanyModel
@@ -54,7 +55,7 @@ class StandaloneDataInitializerTest {
             properties,
             companyRepository,
             UserService(userRepository),
-            roleRepository,
+            RoleService(roleRepository),
             invitationService,
         ).run(mockk<ApplicationArguments>())
 

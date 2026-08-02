@@ -13,8 +13,10 @@ import org.springframework.transaction.annotation.Transactional
 class RoleService(
     private val roleRepo: RoleRepository,
 ) {
+    fun findRole(roleName: String): RoleModel? = roleRepo.findByName(roleName.uppercase())
+
     fun getRole(roleName: String): RoleModel =
-        roleRepo.findByName(roleName.uppercase())
+        findRole(roleName)
             ?: throw EntryNotFoundException(
                 resource = "Role",
                 field = "name",
