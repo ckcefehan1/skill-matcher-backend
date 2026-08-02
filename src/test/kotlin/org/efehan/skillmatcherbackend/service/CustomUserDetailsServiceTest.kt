@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.efehan.skillmatcherbackend.core.auth.CustomUserDetailsService
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.RoleModel
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserRepository
@@ -30,7 +31,7 @@ class CustomUserDetailsServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = CustomUserDetailsService(userRepository)
+        service = CustomUserDetailsService(UserService(userRepository))
     }
 
     private fun buildTestUser(

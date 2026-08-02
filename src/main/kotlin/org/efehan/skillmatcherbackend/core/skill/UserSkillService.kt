@@ -2,17 +2,13 @@ package org.efehan.skillmatcherbackend.core.skill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
-import org.efehan.skillmatcherbackend.persistence.SkillModel
-import org.efehan.skillmatcherbackend.persistence.SkillRepository
+import org.efehan.skillmatcherbackend.persistence.SkillCoOccurrence
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillModel
 import org.efehan.skillmatcherbackend.persistence.UserSkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.cache.annotation.CacheEvict
-import org.springframework.cache.annotation.Cacheable
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -21,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional
 class UserSkillService(
-    private val skillRepo: SkillRepository,
+    private val skillService: SkillService,
     private val userSkillRepo: UserSkillRepository,
 ) {
     @CacheEvict(
@@ -35,10 +31,7 @@ class UserSkillService(
     ): Pair<UserSkillModel, Boolean> {
         require(level in 1..5) { "Level must be between 1 and 5" }
 
-        val normalized = name.trim().lowercase()
-        val skill =
-            skillRepo.findByNameIgnoreCase(normalized)
-                ?: skillRepo.save(SkillModel(name = normalized))
+        val skill = skillService.findOrCreate(name)
 
         val existing = userSkillRepo.findByUserAndSkillId(user, skill.id)
         val created = existing == null
@@ -54,10 +47,10 @@ class UserSkillService(
         return userSkill to created
     }
 
-    @Cacheable(cacheNames = [CacheConfig.SKILL_CATALOG])
-    fun getAllSkills(pageable: Pageable): Page<SkillModel> = skillRepo.findAll(pageable)
-
     fun getUserSkills(user: UserModel): List<UserSkillModel> = userSkillRepo.findByUser(user)
+
+    @Transactional(readOnly = true)
+    fun findCoOccurrences(minCount: Long): List<SkillCoOccurrence> = userSkillRepo.findSkillCoOccurrence(minCount)
 
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],

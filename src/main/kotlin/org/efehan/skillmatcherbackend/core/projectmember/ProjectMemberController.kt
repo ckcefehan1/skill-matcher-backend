@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.efehan.skillmatcherbackend.core.application.ApplicationService
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCodeResponse
 import org.springframework.http.HttpStatus
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "Project Members", description = "Manage project team members")
 class ProjectMemberController(
     private val service: ProjectMemberService,
+    private val applicationService: ApplicationService,
 ) {
     @Operation(
         summary = "Add a member to a project",
@@ -117,7 +119,7 @@ class ProjectMemberController(
         @AuthenticationPrincipal securityUser: SecurityUser,
         @PathVariable projectId: String,
         @Valid @RequestBody request: AddProjectMemberRequest,
-    ): ProjectMemberDto = service.addMember(securityUser.user, projectId, request.userId).toDTO()
+    ): ProjectMemberDto = applicationService.addMember(securityUser.user, projectId, request.userId).toDTO()
 
     @Operation(
         summary = "List active members of a project",

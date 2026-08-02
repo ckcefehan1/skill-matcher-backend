@@ -2,12 +2,12 @@ package org.efehan.skillmatcherbackend.core.superadmin
 
 import org.efehan.skillmatcherbackend.config.properties.SuperadminProperties
 import org.efehan.skillmatcherbackend.core.invitation.InvitationService
+import org.efehan.skillmatcherbackend.core.role.RoleService
 import org.efehan.skillmatcherbackend.core.tenant.TenantContext
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.persistence.CompanyRepository
 import org.efehan.skillmatcherbackend.persistence.RoleName
-import org.efehan.skillmatcherbackend.persistence.RoleRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -25,8 +25,8 @@ import org.springframework.transaction.annotation.Transactional
 class SuperadminBootstrapInitializer(
     private val properties: SuperadminProperties,
     private val companyRepository: CompanyRepository,
-    private val userRepository: UserRepository,
-    private val roleRepository: RoleRepository,
+    private val userService: UserService,
+    private val roleService: RoleService,
     private val invitationService: InvitationService,
 ) : ApplicationRunner {
     private val logger = LoggerFactory.getLogger(SuperadminBootstrapInitializer::class.java)
@@ -35,10 +35,10 @@ class SuperadminBootstrapInitializer(
     override fun run(args: ApplicationArguments) {
         if (properties.email.isBlank()) return
         TenantContext.runAsRoot {
-            if (userRepository.existsByEmail(properties.email)) return@runAsRoot
+            if (userService.existsByEmail(properties.email)) return@runAsRoot
 
             val role =
-                roleRepository.findByName(RoleName.SUPERADMIN.name)
+                roleService.findRole(RoleName.SUPERADMIN.name)
                     ?: error("Role ${RoleName.SUPERADMIN.name} is missing — v0.26 seeds it")
             val platformCompany =
                 companyRepository.findById(PLATFORM_COMPANY_ID).orElseThrow {
@@ -54,7 +54,7 @@ class SuperadminBootstrapInitializer(
                     lastName = null,
                     role = role,
                 ).apply { companyId = platformCompany.id }
-            userRepository.save(superadmin)
+            userService.save(superadmin)
             invitationService.createAndSendInvitation(superadmin)
         }
     }

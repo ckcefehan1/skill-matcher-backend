@@ -10,7 +10,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.core.application.ApplicationService
 import org.efehan.skillmatcherbackend.core.audit.AuditService
 import org.efehan.skillmatcherbackend.core.mail.EmailService
+import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectmember.ProjectMemberService
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectApplicationBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
@@ -18,8 +20,6 @@ import org.efehan.skillmatcherbackend.fixtures.builder.ProjectMemberBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.ApplicationStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectApplicationRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberStatus
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
@@ -45,9 +45,6 @@ class ApplicationServiceTest {
     private lateinit var projectRepo: ProjectRepository
 
     @MockK
-    private lateinit var memberRepo: ProjectMemberRepository
-
-    @MockK
     private lateinit var userRepo: UserRepository
 
     @MockK
@@ -70,9 +67,8 @@ class ApplicationServiceTest {
         service =
             ApplicationService(
                 applicationRepo = applicationRepo,
-                projectRepo = projectRepo,
-                memberRepo = memberRepo,
-                userRepo = userRepo,
+                projectService = ProjectService(projectRepo),
+                userService = UserService(userRepo),
                 memberService = memberService,
                 emailService = emailService,
                 auditService = auditService,
@@ -89,7 +85,7 @@ class ApplicationServiceTest {
     @Test
     fun `apply creates PENDING application and notifies PM`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns null
         every { applicationRepo.save(any()) } returnsArgument 0
 
@@ -112,8 +108,7 @@ class ApplicationServiceTest {
     @Test
     fun `apply throws APPLICATION_FOR_MEMBER when user is already an active member`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
-        val activeMember = ProjectMemberBuilder().build(project = project, user = employer, status = ProjectMemberStatus.ACTIVE)
-        every { memberRepo.findByProjectAndUser(project, employer) } returns activeMember
+        every { memberService.isActiveMember(project, employer) } returns true
 
         val ex = assertThrows<DuplicateEntryException> { service.apply(employer, project.id, null) }
         assertThat(ex.errorCode).isEqualTo(GlobalErrorCode.APPLICATION_FOR_MEMBER)
@@ -122,8 +117,7 @@ class ApplicationServiceTest {
     @Test
     fun `apply allows re-application after LEFT membership`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
-        val leftMember = ProjectMemberBuilder().build(project = project, user = employer, status = ProjectMemberStatus.LEFT)
-        every { memberRepo.findByProjectAndUser(project, employer) } returns leftMember
+        every { memberService.isActiveMember(project, employer) } returns false
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns null
         every { applicationRepo.save(any()) } returnsArgument 0
 
@@ -135,7 +129,7 @@ class ApplicationServiceTest {
     @Test
     fun `apply throws APPLICATION_DUPLICATE when PENDING application already exists`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         val existing = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.PENDING)
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns existing
 
@@ -156,7 +150,7 @@ class ApplicationServiceTest {
         assertThat(result.status).isEqualTo(ApplicationStatus.ACCEPTED)
         assertThat(result.decidedBy?.id).isEqualTo(pm.id)
         assertThat(result.decidedAt).isNotNull()
-        verify(exactly = 0) { memberRepo.save(any()) }
+        verify(exactly = 0) { memberService.addMember(any(), any(), any()) }
         verify { emailService.sendApplicationDecidedEmail(employer, project, true, null) }
     }
 
@@ -295,7 +289,7 @@ class ApplicationServiceTest {
     fun `invite creates INVITED application and notifies invitee`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
         every { userRepo.findByIdOrNull(employer.id) } returns employer
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns null
         every { applicationRepo.save(any()) } returnsArgument 0
 
@@ -329,8 +323,7 @@ class ApplicationServiceTest {
     fun `invite throws APPLICATION_FOR_MEMBER when user is already an active member`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
         every { userRepo.findByIdOrNull(employer.id) } returns employer
-        val activeMember = ProjectMemberBuilder().build(project = project, user = employer, status = ProjectMemberStatus.ACTIVE)
-        every { memberRepo.findByProjectAndUser(project, employer) } returns activeMember
+        every { memberService.isActiveMember(project, employer) } returns true
 
         val ex = assertThrows<DuplicateEntryException> { service.invite(pm, project.id, employer.id, null) }
         assertThat(ex.errorCode).isEqualTo(GlobalErrorCode.APPLICATION_FOR_MEMBER)
@@ -340,7 +333,7 @@ class ApplicationServiceTest {
     fun `invite throws APPLICATION_DUPLICATE when PENDING application exists`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
         every { userRepo.findByIdOrNull(employer.id) } returns employer
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         val existing = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.PENDING)
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns existing
 
@@ -352,7 +345,7 @@ class ApplicationServiceTest {
     fun `invite throws APPLICATION_DUPLICATE when INVITED application exists`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
         every { userRepo.findByIdOrNull(employer.id) } returns employer
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns null
         val existing = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED)
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.INVITED) } returns existing
@@ -364,7 +357,7 @@ class ApplicationServiceTest {
     @Test
     fun `apply throws APPLICATION_DUPLICATE when INVITED application exists`() {
         every { projectRepo.findByIdOrNull(project.id) } returns project
-        every { memberRepo.findByProjectAndUser(project, employer) } returns null
+        every { memberService.isActiveMember(project, employer) } returns false
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.PENDING) } returns null
         val existing = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.INVITED)
         every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.INVITED) } returns existing
@@ -374,6 +367,40 @@ class ApplicationServiceTest {
     }
 
     // --- acceptInvitation ---
+
+    @Test
+    fun `addMember requires an accepted application`() {
+        every { projectRepo.findByIdOrNull(project.id) } returns project
+        every { userRepo.findByIdOrNull(employer.id) } returns employer
+        every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.ACCEPTED) } returns null
+
+        val ex = assertThrows<AccessDeniedException> { service.addMember(pm, project.id, employer.id) }
+        assertThat(ex.errorCode).isEqualTo(GlobalErrorCode.PROJECT_MEMBER_REQUIRES_ACCEPTED_APPLICATION)
+        verify(exactly = 0) { memberService.addMember(any(), any(), any()) }
+    }
+
+    @Test
+    fun `addMember checks ownership before the application gate`() {
+        // a non-owner must not learn from the error code whether the target user applied
+        val stranger = UserBuilder().build(email = "stranger@firma.de", firstName = "Stran", lastName = "Ger")
+        every { projectRepo.findByIdOrNull(project.id) } returns project
+
+        val ex = assertThrows<AccessDeniedException> { service.addMember(stranger, project.id, employer.id) }
+        assertThat(ex.errorCode).isEqualTo(GlobalErrorCode.PROJECT_ACCESS_DENIED)
+        verify(exactly = 0) { memberService.addMember(any(), any(), any()) }
+    }
+
+    @Test
+    fun `addMember delegates once an accepted application exists`() {
+        val accepted = ProjectApplicationBuilder().build(project = project, user = employer, status = ApplicationStatus.ACCEPTED)
+        every { projectRepo.findByIdOrNull(project.id) } returns project
+        every { userRepo.findByIdOrNull(employer.id) } returns employer
+        every { applicationRepo.findByProjectAndUserAndStatus(project, employer, ApplicationStatus.ACCEPTED) } returns accepted
+        every { memberService.addMember(pm, project.id, employer.id) } returns
+            ProjectMemberBuilder().build(project = project, user = employer)
+
+        assertThat(service.addMember(pm, project.id, employer.id).user.id).isEqualTo(employer.id)
+    }
 
     @Test
     fun `acceptInvitation sets ACCEPTED, adds member via owner and notifies PM`() {

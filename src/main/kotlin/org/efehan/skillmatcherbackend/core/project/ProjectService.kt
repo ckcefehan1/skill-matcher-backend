@@ -2,10 +2,8 @@ package org.efehan.skillmatcherbackend.core.project
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
-import org.efehan.skillmatcherbackend.persistence.ProjectMemberRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
-import org.efehan.skillmatcherbackend.persistence.ProjectSkillRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectStatus
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
@@ -23,8 +21,6 @@ import java.time.LocalDate
 @Transactional
 class ProjectService(
     private val projectRepo: ProjectRepository,
-    private val projectSkillRepo: ProjectSkillRepository,
-    private val projectMemberRepo: ProjectMemberRepository,
 ) {
     fun createProject(
         owner: UserModel,
@@ -56,6 +52,20 @@ class ProjectService(
                 status = HttpStatus.NOT_FOUND,
             )
 
+    fun getProjectAsOwner(
+        user: UserModel,
+        projectId: String,
+    ): ProjectModel =
+        getProject(projectId).also {
+            if (it.owner.id != user.id) {
+                throw AccessDeniedException(
+                    resource = "Project",
+                    errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
+                    status = HttpStatus.FORBIDDEN,
+                )
+            }
+        }
+
     fun getAllProjects(pageable: Pageable): Page<ProjectModel> = projectRepo.findAll(pageable)
 
     @CacheEvict(
@@ -72,22 +82,7 @@ class ProjectService(
         endDate: LocalDate,
         maxMembers: Int,
     ): ProjectModel {
-        val project =
-            projectRepo.findByIdOrNull(projectId)
-                ?: throw EntryNotFoundException(
-                    resource = "Project",
-                    field = "id",
-                    value = projectId,
-                    errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        if (project.owner.id != user.id) {
-            throw AccessDeniedException(
-                resource = "Project",
-                errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
+        val project = getProjectAsOwner(user, projectId)
 
         project.also {
             it.name = name
@@ -109,25 +104,7 @@ class ProjectService(
         user: UserModel,
         projectId: String,
     ) {
-        val project =
-            projectRepo.findByIdOrNull(projectId)
-                ?: throw EntryNotFoundException(
-                    resource = "Project",
-                    field = "id",
-                    value = projectId,
-                    errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        if (project.owner.id != user.id) {
-            throw AccessDeniedException(
-                resource = "Project",
-                errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
-
-        projectMemberRepo.deleteAll(projectMemberRepo.findByProject(project))
-        projectSkillRepo.deleteAll(projectSkillRepo.findByProject(project))
-        projectRepo.delete(project)
+        // skills, members and applications go with it via ON DELETE CASCADE
+        projectRepo.delete(getProjectAsOwner(user, projectId))
     }
 }

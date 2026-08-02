@@ -1,7 +1,7 @@
 package org.efehan.skillmatcherbackend.core.chat
 
 import org.efehan.skillmatcherbackend.core.notification.NotificationService
-import org.efehan.skillmatcherbackend.persistence.UserRepository
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Component
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class ChatEventDispatcher(
     private val messagingTemplate: SimpMessagingTemplate,
     private val notificationService: NotificationService,
-    private val userRepository: UserRepository,
+    private val userService: UserService,
 ) {
     private val logger = LoggerFactory.getLogger(ChatEventDispatcher::class.java)
 
@@ -30,7 +30,7 @@ class ChatEventDispatcher(
         messagingTemplate.convertAndSendToUser(event.recipientId, "/queue/messages", message)
         messagingTemplate.convertAndSendToUser(message.senderId, "/queue/messages", message)
 
-        val recipient = userRepository.findById(event.recipientId).orElse(null)
+        val recipient = userService.findById(event.recipientId)
         if (recipient == null) {
             logger.warn("Skipping chat notification: recipient {} no longer exists", event.recipientId)
             return

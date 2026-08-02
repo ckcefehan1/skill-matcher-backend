@@ -5,8 +5,6 @@ import org.efehan.skillmatcherbackend.config.properties.WsTicketProperties
 import org.springframework.stereotype.Service
 import java.util.UUID
 
-// ponytail: in-memory, eine Instanz — bei Multi-Instanz Redis (siehe Roadmap)
-
 /**
  * One-time tickets for STOMP CONNECT authentication. The SPA cannot read the
  * httpOnly access_token cookie, so it exchanges its cookie-authenticated

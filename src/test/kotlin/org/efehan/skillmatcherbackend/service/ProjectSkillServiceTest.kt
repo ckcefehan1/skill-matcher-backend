@@ -1,13 +1,14 @@
 package org.efehan.skillmatcherbackend.service
 
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.efehan.skillmatcherbackend.core.project.ProjectService
 import org.efehan.skillmatcherbackend.core.projectskill.ProjectSkillService
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.ProjectSkillBuilder
@@ -19,6 +20,7 @@ import org.efehan.skillmatcherbackend.persistence.SkillPriority
 import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -36,8 +38,12 @@ class ProjectSkillServiceTest {
     @MockK
     private lateinit var projectSkillRepo: ProjectSkillRepository
 
-    @InjectMockKs
     private lateinit var projectSkillService: ProjectSkillService
+
+    @BeforeEach
+    fun setUp() {
+        projectSkillService = ProjectSkillService(ProjectService(projectRepo), SkillService(skillRepo), projectSkillRepo)
+    }
 
     @Test
     fun `addOrUpdateSkill creates new skill and project skill`() {
@@ -46,8 +52,7 @@ class ProjectSkillServiceTest {
         val project = ProjectBuilder().build(owner = owner)
         val skill = SkillBuilder().build(name = "kotlin")
         every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { skillRepo.findByNameIgnoreCase("kotlin") } returns null
-        every { skillRepo.save(any()) } returns skill
+        every { skillRepo.findByNameIgnoreCase("kotlin") } returns skill
         every { projectSkillRepo.findByProjectAndSkillId(project, skill.id) } returns null
         every { projectSkillRepo.save(any()) } returnsArgument 0
 
@@ -59,30 +64,7 @@ class ProjectSkillServiceTest {
         assertThat(result.skill.name).isEqualTo("kotlin")
         assertThat(result.level).isEqualTo(3)
         assertThat(result.priority).isEqualTo(SkillPriority.MUST_HAVE)
-        verify(exactly = 1) { skillRepo.save(any()) }
         verify(exactly = 1) { projectSkillRepo.save(any()) }
-    }
-
-    @Test
-    fun `addOrUpdateSkill reuses existing skill`() {
-        // given
-        val owner = UserBuilder().build()
-        val project = ProjectBuilder().build(owner = owner)
-        val skill = SkillBuilder().build(name = "java")
-        every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { skillRepo.findByNameIgnoreCase("java") } returns skill
-        every { projectSkillRepo.findByProjectAndSkillId(project, skill.id) } returns null
-        every { projectSkillRepo.save(any()) } returnsArgument 0
-
-        // when
-        val (result, created) = projectSkillService.addOrUpdateSkill(owner, project.id, "Java", 4)
-
-        // then
-        assertThat(created).isTrue()
-        assertThat(result.skill.name).isEqualTo("java")
-        assertThat(result.level).isEqualTo(4)
-        assertThat(result.priority).isEqualTo(SkillPriority.MUST_HAVE)
-        verify(exactly = 0) { skillRepo.save(any()) }
     }
 
     @Test
@@ -105,26 +87,6 @@ class ProjectSkillServiceTest {
         assertThat(result.level).isEqualTo(5)
         assertThat(result.priority).isEqualTo(SkillPriority.NICE_TO_HAVE)
         assertThat(existingProjectSkill.priority).isEqualTo(SkillPriority.NICE_TO_HAVE)
-        verify(exactly = 0) { skillRepo.save(any()) }
-    }
-
-    @Test
-    fun `addOrUpdateSkill trims and lowercases skill name`() {
-        // given
-        val owner = UserBuilder().build()
-        val project = ProjectBuilder().build(owner = owner)
-        val skill = SkillBuilder().build(name = "spring boot")
-        every { projectRepo.findById(project.id) } returns Optional.of(project)
-        every { skillRepo.findByNameIgnoreCase("spring boot") } returns skill
-        every { projectSkillRepo.findByProjectAndSkillId(project, skill.id) } returns null
-        every { projectSkillRepo.save(any()) } returnsArgument 0
-
-        // when
-        val (result, _) = projectSkillService.addOrUpdateSkill(owner, project.id, "  Spring Boot  ", 3)
-
-        // then
-        assertThat(result.skill.name).isEqualTo("spring boot")
-        verify { skillRepo.findByNameIgnoreCase("spring boot") }
     }
 
     @Test

@@ -1,12 +1,12 @@
 package org.efehan.skillmatcherbackend.core.chat
 
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
 import org.efehan.skillmatcherbackend.persistence.ChatMessageModel
 import org.efehan.skillmatcherbackend.persistence.ChatMessageRepository
 import org.efehan.skillmatcherbackend.persistence.ConversationModel
 import org.efehan.skillmatcherbackend.persistence.ConversationRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
 import org.springframework.data.domain.PageRequest
@@ -21,7 +21,7 @@ import java.time.Instant
 class ChatService(
     private val conversationRepo: ConversationRepository,
     private val messageRepo: ChatMessageRepository,
-    private val userRepo: UserRepository,
+    private val userService: UserService,
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatEventPublisher: ChatEventPublisher,
 ) {
@@ -35,7 +35,7 @@ class ChatService(
     ): List<UserModel> {
         val term = q.trim()
         if (term.length < MIN_SEARCH_TERM_LENGTH) return emptyList()
-        return userRepo.searchChatPartners(term, user.id, PageRequest.of(0, limit.coerceIn(1, 50)))
+        return userService.searchChatPartners(term, user.id, PageRequest.of(0, limit.coerceIn(1, 50)))
     }
 
     fun getLastMessages(conversations: List<ConversationModel>): Map<String, ChatMessageModel> {
@@ -83,16 +83,7 @@ class ChatService(
             throw IllegalArgumentException("Cannot create a conversation with yourself.")
         }
 
-        val partner =
-            userRepo.findById(partnerId).orElseThrow {
-                EntryNotFoundException(
-                    resource = "User",
-                    field = "id",
-                    value = partnerId,
-                    errorCode = GlobalErrorCode.USER_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-            }
+        val partner = userService.getUser(partnerId)
 
         val existing = conversationRepo.findByUsers(user, partner)
         if (existing != null) {

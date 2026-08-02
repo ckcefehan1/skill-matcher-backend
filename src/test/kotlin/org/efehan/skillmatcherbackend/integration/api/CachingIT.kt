@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.efehan.skillmatcherbackend.config.CacheConfig
 import org.efehan.skillmatcherbackend.core.matching.MatchTier
 import org.efehan.skillmatcherbackend.core.matching.MatchingService
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.core.skill.UserSkillService
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillModel
@@ -26,6 +27,9 @@ class CachingIT : AbstractIntegrationTest() {
     private lateinit var userSkillService: UserSkillService
 
     @Autowired
+    private lateinit var skillService: SkillService
+
+    @Autowired
     private lateinit var matchingService: MatchingService
 
     @Test
@@ -33,7 +37,7 @@ class CachingIT : AbstractIntegrationTest() {
         val user = saveUser("max@firma.de")
         skillRepository.save(SkillModel(name = "kotlin"))
 
-        userSkillService.getAllSkills(PageRequest.of(0, 20))
+        skillService.getAllSkills(PageRequest.of(0, 20))
         assertThat(caffeineMap(CacheConfig.SKILL_CATALOG)).isNotEmpty
 
         userSkillService.addOrUpdateSkill(user, "java", 3)

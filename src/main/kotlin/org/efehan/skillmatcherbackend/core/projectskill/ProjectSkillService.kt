@@ -1,13 +1,12 @@
 package org.efehan.skillmatcherbackend.core.projectskill
 
 import org.efehan.skillmatcherbackend.config.CacheConfig
+import org.efehan.skillmatcherbackend.core.project.ProjectService
+import org.efehan.skillmatcherbackend.core.skill.SkillService
 import org.efehan.skillmatcherbackend.exception.GlobalErrorCode
-import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillModel
 import org.efehan.skillmatcherbackend.persistence.ProjectSkillRepository
-import org.efehan.skillmatcherbackend.persistence.SkillModel
 import org.efehan.skillmatcherbackend.persistence.SkillPriority
-import org.efehan.skillmatcherbackend.persistence.SkillRepository
 import org.efehan.skillmatcherbackend.persistence.UserModel
 import org.efehan.skillmatcherbackend.shared.exceptions.AccessDeniedException
 import org.efehan.skillmatcherbackend.shared.exceptions.EntryNotFoundException
@@ -20,8 +19,8 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional
 class ProjectSkillService(
-    private val projectRepo: ProjectRepository,
-    private val skillRepo: SkillRepository,
+    private val projectService: ProjectService,
+    private val skillService: SkillService,
     private val projectSkillRepo: ProjectSkillRepository,
 ) {
     @CacheEvict(
@@ -41,27 +40,8 @@ class ProjectSkillService(
                 it.name.equals(priorityName.trim(), ignoreCase = true)
             } ?: throw IllegalArgumentException("Priority must be MUST_HAVE or NICE_TO_HAVE")
 
-        val project =
-            projectRepo.findByIdOrNull(projectId)
-                ?: throw EntryNotFoundException(
-                    resource = "Project",
-                    field = "id",
-                    value = projectId,
-                    errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        if (project.owner.id != user.id) {
-            throw AccessDeniedException(
-                resource = "Project",
-                errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
-
-        val normalized = name.trim().lowercase()
-        val skill =
-            skillRepo.findByNameIgnoreCase(normalized)
-                ?: skillRepo.save(SkillModel(name = normalized))
+        val project = projectService.getProjectAsOwner(user, projectId)
+        val skill = skillService.findOrCreate(name)
 
         val existing = projectSkillRepo.findByProjectAndSkillId(project, skill.id)
 
@@ -88,26 +68,7 @@ class ProjectSkillService(
     fun getProjectSkills(
         user: UserModel,
         projectId: String,
-    ): List<ProjectSkillModel> {
-        val project =
-            projectRepo.findByIdOrNull(projectId)
-                ?: throw EntryNotFoundException(
-                    resource = "Project",
-                    field = "id",
-                    value = projectId,
-                    errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        if (project.owner.id != user.id) {
-            throw AccessDeniedException(
-                resource = "Project",
-                errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
-
-        return projectSkillRepo.findByProject(project)
-    }
+    ): List<ProjectSkillModel> = projectSkillRepo.findByProject(projectService.getProjectAsOwner(user, projectId))
 
     @CacheEvict(
         cacheNames = [CacheConfig.MATCHING_CANDIDATES, CacheConfig.MATCHING_PROJECTS_FOR_USER],
@@ -118,22 +79,7 @@ class ProjectSkillService(
         projectId: String,
         projectSkillId: String,
     ) {
-        val project =
-            projectRepo.findByIdOrNull(projectId)
-                ?: throw EntryNotFoundException(
-                    resource = "Project",
-                    field = "id",
-                    value = projectId,
-                    errorCode = GlobalErrorCode.PROJECT_NOT_FOUND,
-                    status = HttpStatus.NOT_FOUND,
-                )
-        if (project.owner.id != user.id) {
-            throw AccessDeniedException(
-                resource = "Project",
-                errorCode = GlobalErrorCode.PROJECT_ACCESS_DENIED,
-                status = HttpStatus.FORBIDDEN,
-            )
-        }
+        val project = projectService.getProjectAsOwner(user, projectId)
 
         val projectSkill =
             projectSkillRepo.findByIdOrNull(projectSkillId)

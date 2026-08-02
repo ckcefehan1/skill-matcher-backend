@@ -9,11 +9,11 @@ import org.efehan.skillmatcherbackend.core.mail.MailSender
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommand
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailCommandListener
 import org.efehan.skillmatcherbackend.core.mail.rabbit.MailEnvelope
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.ProjectModel
 import org.efehan.skillmatcherbackend.persistence.ProjectRepository
 import org.efehan.skillmatcherbackend.persistence.RoleModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -26,7 +26,7 @@ class MailCommandListenerTest {
     private lateinit var mailSender: MailSender
 
     @MockK
-    private lateinit var userRepository: UserRepository
+    private lateinit var userService: UserService
 
     @MockK
     private lateinit var projectRepository: ProjectRepository
@@ -40,7 +40,7 @@ class MailCommandListenerTest {
     fun `sends invitation mail when user exists`() {
         // given
         val user = user("test@example.com")
-        io.mockk.every { userRepository.findById(user.id) } returns Optional.of(user)
+        io.mockk.every { userService.findById(user.id) } returns user
 
         // when
         listener.handle(MailEnvelope(null, MailCommand.Invitation(user.id, "token-123", 72)))
@@ -52,7 +52,7 @@ class MailCommandListenerTest {
     @Test
     fun `drops invitation mail when user no longer exists`() {
         // given
-        io.mockk.every { userRepository.findById("gone") } returns Optional.empty()
+        io.mockk.every { userService.findById("gone") } returns null
 
         // when
         listener.handle(MailEnvelope(null, MailCommand.Invitation("gone", "token-123", 72)))
@@ -65,7 +65,7 @@ class MailCommandListenerTest {
     fun `sends registration code mail when user exists`() {
         // given
         val user = user("test@example.com")
-        io.mockk.every { userRepository.findById(user.id) } returns Optional.of(user)
+        io.mockk.every { userService.findById(user.id) } returns user
 
         // when
         listener.handle(MailEnvelope(null, MailCommand.RegistrationCode(user.id, "123456", 15)))
@@ -77,7 +77,7 @@ class MailCommandListenerTest {
     @Test
     fun `drops registration code mail when user no longer exists`() {
         // given
-        io.mockk.every { userRepository.findById("gone") } returns Optional.empty()
+        io.mockk.every { userService.findById("gone") } returns null
 
         // when
         listener.handle(MailEnvelope(null, MailCommand.RegistrationCode("gone", "123456", 15)))
@@ -91,7 +91,7 @@ class MailCommandListenerTest {
         // given
         val applicant = user("applicant@example.com")
         val project = mockk<ProjectModel>()
-        io.mockk.every { userRepository.findById(applicant.id) } returns Optional.of(applicant)
+        io.mockk.every { userService.findById(applicant.id) } returns applicant
         io.mockk.every { projectRepository.findById("p1") } returns Optional.of(project)
 
         // when
@@ -105,7 +105,7 @@ class MailCommandListenerTest {
     fun `drops application decided mail when project no longer exists`() {
         // given
         val applicant = user("applicant@example.com")
-        io.mockk.every { userRepository.findById(applicant.id) } returns Optional.of(applicant)
+        io.mockk.every { userService.findById(applicant.id) } returns applicant
         io.mockk.every { projectRepository.findById("gone") } returns Optional.empty()
 
         // when
@@ -121,8 +121,8 @@ class MailCommandListenerTest {
         val invitee = user("invitee@example.com")
         val pm = user("pm@example.com")
         val project = mockk<ProjectModel>()
-        io.mockk.every { userRepository.findById(invitee.id) } returns Optional.of(invitee)
-        io.mockk.every { userRepository.findById(pm.id) } returns Optional.of(pm)
+        io.mockk.every { userService.findById(invitee.id) } returns invitee
+        io.mockk.every { userService.findById(pm.id) } returns pm
         io.mockk.every { projectRepository.findById("p1") } returns Optional.of(project)
 
         // when

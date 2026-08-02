@@ -42,4 +42,5 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/v0.27_add_company_id_columns_and_backfill.xml"/>
     <include file="db/changelog/v0.28_enforce_company_id_constraints.xml"/>
     <include file="db/changelog/v0.29_add_registration_code_to_invitation_tokens.xml"/>
+    <include file="db/changelog/v0.30_cascade_project_children.xml"/>
 </databaseChangeLog>

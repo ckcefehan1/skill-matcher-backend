@@ -10,10 +10,10 @@ import org.efehan.skillmatcherbackend.config.WebSocketPrincipal
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRegistry
 import org.efehan.skillmatcherbackend.config.WebSocketSessionRevalidator
 import org.efehan.skillmatcherbackend.core.auth.SecurityUser
+import org.efehan.skillmatcherbackend.core.user.UserService
 import org.efehan.skillmatcherbackend.fixtures.builder.RoleBuilder
 import org.efehan.skillmatcherbackend.fixtures.builder.UserBuilder
 import org.efehan.skillmatcherbackend.persistence.UserModel
-import org.efehan.skillmatcherbackend.persistence.UserRepository
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -31,7 +31,7 @@ class WebSocketSessionRevalidatorTest {
     private lateinit var sessionRegistry: WebSocketSessionRegistry
 
     @MockK
-    private lateinit var userRepository: UserRepository
+    private lateinit var userService: UserService
 
     @InjectMockKs
     private lateinit var revalidator: WebSocketSessionRevalidator
@@ -41,7 +41,7 @@ class WebSocketSessionRevalidatorTest {
         // given
         val user = UserBuilder().build()
         givenConnected(user)
-        every { userRepository.findAllById(listOf(user.id)) } returns listOf(user)
+        every { userService.findAllById(listOf(user.id)) } returns listOf(user)
 
         // when
         revalidator.revalidate()
@@ -55,7 +55,7 @@ class WebSocketSessionRevalidatorTest {
         // given
         val user = UserBuilder().build()
         givenConnected(user)
-        every { userRepository.findAllById(listOf(user.id)) } returns listOf(copyOf(user, isEnabled = false))
+        every { userService.findAllById(listOf(user.id)) } returns listOf(copyOf(user, isEnabled = false))
         every { sessionRegistry.disconnect(user.id) } returns Unit
 
         // when
@@ -70,7 +70,7 @@ class WebSocketSessionRevalidatorTest {
         // given
         val user = UserBuilder().build()
         givenConnected(user)
-        every { userRepository.findAllById(listOf(user.id)) } returns listOf(copyOf(user, role = "ADMIN"))
+        every { userService.findAllById(listOf(user.id)) } returns listOf(copyOf(user, role = "ADMIN"))
         every { sessionRegistry.disconnect(user.id) } returns Unit
 
         // when
@@ -85,7 +85,7 @@ class WebSocketSessionRevalidatorTest {
         // given
         val user = UserBuilder().build()
         givenConnected(user)
-        every { userRepository.findAllById(listOf(user.id)) } returns emptyList()
+        every { userService.findAllById(listOf(user.id)) } returns emptyList()
         every { sessionRegistry.disconnect(user.id) } returns Unit
 
         // when
@@ -104,7 +104,7 @@ class WebSocketSessionRevalidatorTest {
         revalidator.revalidate()
 
         // then
-        verify(exactly = 0) { userRepository.findAllById(any()) }
+        verify(exactly = 0) { userService.findAllById(any()) }
     }
 
     private fun givenConnected(user: UserModel) {
